@@ -11,6 +11,7 @@ import Personal from './components/Personal';
 import Proveedores from './components/Proveedores';
 import Comprobantes from './components/Comprobantes';
 import GuiaImplementacion from './components/GuiaImplementacion';
+import TutorialTerminal from './components/TutorialTerminal';
 
 const AppContent: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -31,6 +32,7 @@ const AppContent: React.FC = () => {
       case 'proveedores': return <Proveedores />;
       case 'comprobantes': return <Comprobantes />;
       case 'guia': return <GuiaImplementacion />;
+      case 'tutorial': return <TutorialTerminal />;
       default: return <Dashboard />;
     }
   };
