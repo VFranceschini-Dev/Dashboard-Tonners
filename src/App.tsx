@@ -10,6 +10,7 @@ import ServiciosTecnicos from './components/ServiciosTecnicos';
 import Personal from './components/Personal';
 import Proveedores from './components/Proveedores';
 import Comprobantes from './components/Comprobantes';
+import GuiaImplementacion from './components/GuiaImplementacion';
 
 const AppContent: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -29,6 +30,7 @@ const AppContent: React.FC = () => {
       case 'personal': return <Personal />;
       case 'proveedores': return <Proveedores />;
       case 'comprobantes': return <Comprobantes />;
+      case 'guia': return <GuiaImplementacion />;
       default: return <Dashboard />;
     }
   };

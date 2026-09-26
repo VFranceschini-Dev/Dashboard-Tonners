@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { 
   LayoutDashboard, Printer, Package, ClipboardList, Wrench, 
-  Users, Building2, FileText, LogOut, Menu, X, ChevronDown
+  Users, Building2, FileText, LogOut, Menu, X, ChevronDown, BookOpen
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -20,6 +20,7 @@ const menuItems = [
   { id: 'personal', label: 'Personal', icon: Users, roles: ['admin', 'operador'] },
   { id: 'proveedores', label: 'Proveedores', icon: Building2, roles: ['admin', 'operador', 'consulta'] },
   { id: 'comprobantes', label: 'Comprobantes', icon: FileText, roles: ['admin', 'operador'] },
+  { id: 'guia', label: 'Guía de Implementación', icon: BookOpen, roles: ['admin', 'operador', 'consulta'] },
 ];
 
 const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) => {
