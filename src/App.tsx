@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
-import Layout from './components/Layout';
+import { Login } from './components/Login';
 import Dashboard from './components/Dashboard';
 import Toners from './components/Toners';
 import Impresoras from './components/Impresoras';
@@ -12,6 +12,7 @@ import Proveedores from './components/Proveedores';
 import Comprobantes from './components/Comprobantes';
 import GuiaImplementacion from './components/GuiaImplementacion';
 import TutorialTerminal from './components/TutorialTerminal';
+import { Usuarios } from './components/Usuarios';
 
 const AppContent: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -29,12 +30,15 @@ const AppContent: React.FC = () => {
       case 'asignaciones': return <Asignaciones />;
       case 'servicios': return <ServiciosTecnicos />;
       case 'personal': return <Personal />;
+       // NUEVA CASO PARA RENDERIZAR LA PANTALLA REAL DE USUARIOS
+      case 'usuarios': return <Usuarios />;
       case 'proveedores': return <Proveedores />;
       case 'comprobantes': return <Comprobantes />;
       case 'guia': return <GuiaImplementacion />;
       case 'tutorial': return <TutorialTerminal />;
+
       default: return <Dashboard />;
-    }
+      }
   };
 
   return (

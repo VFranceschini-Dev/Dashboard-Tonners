@@ -18,11 +18,14 @@ const menuItems = [
   { id: 'asignaciones', label: 'Asignaciones', icon: ClipboardList, roles: ['admin', 'operador'] },
   { id: 'servicios', label: 'Servicios Técnicos', icon: Wrench, roles: ['admin', 'operador', 'consulta'] },
   { id: 'personal', label: 'Personal', icon: Users, roles: ['admin', 'operador'] },
+  // NUEVA SECCIÓN: Exclusiva para el administrador para cargar permisos y modificar claves
+  { id: 'usuarios', label: 'Control de Usuarios', icon: Users, roles: ['admin'] },
   { id: 'proveedores', label: 'Proveedores', icon: Building2, roles: ['admin', 'operador', 'consulta'] },
   { id: 'comprobantes', label: 'Comprobantes', icon: FileText, roles: ['admin', 'operador'] },
   { id: 'guia', label: 'Guía de Implementación', icon: BookOpen, roles: ['admin', 'operador', 'consulta'] },
   { id: 'tutorial', label: '¿Cómo ejecutar?', icon: HelpCircle, roles: ['admin', 'operador', 'consulta'] },
 ];
+
 
 const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) => {
   const { user, logout } = useAuth();
