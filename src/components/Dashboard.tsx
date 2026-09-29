@@ -2,8 +2,9 @@ import React from 'react';
 import { toners, impresoras, serviciosTecnicos, asignaciones, comprobantes } from '../data/mockData';
 import { 
   Package, Printer, Wrench, AlertTriangle, CheckCircle, 
-  Clock, TrendingUp, TrendingDown, ArrowUpRight
+  Clock, TrendingDown, ArrowUpRight, Loader2, Monitor, ExternalLink
 } from 'lucide-react';
+
 
 const Dashboard: React.FC = () => {
   const tonersBajoStock = toners.filter(t => t.stockActual <= t.stockMinimo);
@@ -215,10 +216,10 @@ const Dashboard: React.FC = () => {
         </div>
         <div className="p-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {['HP', 'Brother', 'Epson', 'Samsung', 'Canon'].map(marca => {
+            {[...new Set(toners.map(t => t.marca))].map(marca => {
               const marcaToners = toners.filter(t => t.marca === marca);
-              const stockTotal = marcaToners.reduce((acc, t) => acc + t.stockActual, 0);
-              const alertas = marcaToners.filter(t => t.stockActual <= t.stockMinimo).length;
+              const stockTotal = marcaToners.reduce((acc, t) => acc + (t.stock_actual ?? 0), 0);
+              const alertas = marcaToners.filter(t => (t.stock_actual ?? 0) <= (t.stock_minimo ?? 0)).length;
               return (
                 <div key={marca} className="text-center p-4 bg-gray-50 rounded-lg">
                   <p className="text-lg font-bold text-gray-800">{stockTotal}</p>
@@ -231,6 +232,49 @@ const Dashboard: React.FC = () => {
                 </div>
               );
             })}
+            {toners.length === 0 && (
+              <div className="col-span-full text-center py-4 text-gray-500">
+                No hay datos de toners disponibles
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* PCs Fuera de Horario - Widget */}
+      <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-xl p-6 text-white shadow-lg">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+              <Monitor className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">PCs Encendidas Fuera de Horario</h3>
+              <p className="text-orange-100 text-sm mt-1">Monitoreo de equipos activos fuera del horario comercial</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => window.location.href = '/seguimiento'}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-orange-700 rounded-lg text-sm font-semibold hover:bg-orange-50 transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Ver Detalle
+            </button>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3 mt-5">
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
+            <p className="text-orange-100 text-xs">PCs Activas</p>
+            <p className="text-white font-bold text-2xl">0</p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
+            <p className="text-orange-100 text-xs">Áreas</p>
+            <p className="text-white font-bold text-2xl">0</p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
+            <p className="text-orange-100 text-xs">Usuarios</p>
+            <p className="text-white font-bold text-2xl">0</p>
           </div>
         </div>
       </div>

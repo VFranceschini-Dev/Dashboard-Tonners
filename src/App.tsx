@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
-import { Login } from './components/Login';
 import Dashboard from './components/Dashboard';
-   import Layout from './components/Layout';
+import Layout from './components/Layout';
 import Toners from './components/Toners';
 import Impresoras from './components/Impresoras';
 import Asignaciones from './components/Asignaciones';
@@ -11,6 +10,7 @@ import ServiciosTecnicos from './components/ServiciosTecnicos';
 import Personal from './components/Personal';
 import Proveedores from './components/Proveedores';
 import Comprobantes from './components/Comprobantes';
+import SeguimientoPCs from './components/SeguimientoPCs';
 import GuiaImplementacion from './components/GuiaImplementacion';
 import TutorialTerminal from './components/TutorialTerminal';
 import { Usuarios } from './components/Usuarios';
@@ -31,15 +31,14 @@ const AppContent: React.FC = () => {
       case 'asignaciones': return <Asignaciones />;
       case 'servicios': return <ServiciosTecnicos />;
       case 'personal': return <Personal />;
-       // NUEVA CASO PARA RENDERIZAR LA PANTALLA REAL DE USUARIOS
+      case 'seguimiento': return <SeguimientoPCs />;
       case 'usuarios': return <Usuarios />;
       case 'proveedores': return <Proveedores />;
       case 'comprobantes': return <Comprobantes />;
       case 'guia': return <GuiaImplementacion />;
       case 'tutorial': return <TutorialTerminal />;
-
       default: return <Dashboard />;
-      }
+    }
   };
 
   return (

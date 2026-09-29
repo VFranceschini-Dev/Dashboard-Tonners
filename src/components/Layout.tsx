@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { 
   LayoutDashboard, Printer, Package, ClipboardList, Wrench, 
-  Users, Building2, FileText, LogOut, Menu, X, ChevronDown, BookOpen, HelpCircle
+  Users, Building2, FileText, LogOut, Menu, X, ChevronDown, BookOpen, HelpCircle, Monitor
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -18,14 +18,13 @@ const menuItems = [
   { id: 'asignaciones', label: 'Asignaciones', icon: ClipboardList, roles: ['admin', 'operador'] },
   { id: 'servicios', label: 'Servicios Técnicos', icon: Wrench, roles: ['admin', 'operador', 'consulta'] },
   { id: 'personal', label: 'Personal', icon: Users, roles: ['admin', 'operador'] },
-  // NUEVA SECCIÓN: Exclusiva para el administrador para cargar permisos y modificar claves
+  { id: 'seguimiento', label: 'Seguimiento PCs', icon: Monitor, roles: ['admin', 'operador'] },
   { id: 'usuarios', label: 'Control de Usuarios', icon: Users, roles: ['admin'] },
   { id: 'proveedores', label: 'Proveedores', icon: Building2, roles: ['admin', 'operador', 'consulta'] },
   { id: 'comprobantes', label: 'Comprobantes', icon: FileText, roles: ['admin', 'operador'] },
   { id: 'guia', label: 'Guía de Implementación', icon: BookOpen, roles: ['admin', 'operador', 'consulta'] },
   { id: 'tutorial', label: '¿Cómo ejecutar?', icon: HelpCircle, roles: ['admin', 'operador', 'consulta'] },
 ];
-
 
 const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) => {
   const { user, logout } = useAuth();
@@ -47,15 +46,12 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) =>
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Overlay mobile */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="flex flex-col h-full">
-          {/* Logo */}
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -68,7 +64,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) =>
             </div>
           </div>
 
-          {/* Navigation */}
           <nav className="flex-1 p-3 overflow-y-auto">
             <ul className="space-y-1">
               {filteredMenu.map(item => (
@@ -89,7 +84,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) =>
             </ul>
           </nav>
 
-          {/* User info */}
           <div className="p-3 border-t border-gray-200">
             <div className="flex items-center gap-3 px-3 py-2">
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -106,9 +100,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) =>
         </div>
       </aside>
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
         <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <button 
@@ -152,7 +144,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) =>
           </div>
         </header>
 
-        {/* Page content */}
         <main className="flex-1 p-4 lg:p-6 overflow-auto">
           {children}
         </main>
