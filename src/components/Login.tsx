@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+iimport React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Printer, Lock, Mail, AlertCircle } from 'lucide-react';
 
@@ -12,7 +12,6 @@ export const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(false);
 
     if (!email || !password) {
       setError('Por favor, completa todos los campos.');
@@ -22,6 +21,7 @@ export const Login: React.FC = () => {
     try {
       setLoading(true);
       const success = await login(email, password);
+
       if (!success) {
         setError('Credenciales incorrectas. Verifica tu email y contraseña.');
       }
@@ -45,6 +45,7 @@ export const Login: React.FC = () => {
           <p className="text-sm text-gray-500 mt-1">Sistema de Gestión de Toners</p>
         </div>
 
+        {/* Error */}
         {error && (
           <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -55,7 +56,9 @@ export const Login: React.FC = () => {
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Email
+            </label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
                 <Mail className="w-5 h-5" />
@@ -72,7 +75,9 @@ export const Login: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Contraseña</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Contraseña
+            </label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
                 <Lock className="w-5 h-5" />

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import Login from './components/Login';
+import { Login } from './components/Login';
 import Dashboard from './components/Dashboard';
 import Layout from './components/Layout';
 import Toners from './components/Toners';
