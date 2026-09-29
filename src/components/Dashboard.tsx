@@ -4,7 +4,7 @@ import {
   Package, Printer, Wrench, AlertTriangle, CheckCircle, 
   Clock, TrendingDown, ArrowUpRight, Loader2, Monitor, ExternalLink
 } from 'lucide-react';
-
+import { TrendingUp } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const tonersBajoStock = toners.filter(t => t.stockActual <= t.stockMinimo);
