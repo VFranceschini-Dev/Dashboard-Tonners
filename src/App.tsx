@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { meshCentralService, MeshNode } from './services/meshCentral';
 
 // ==================== TIPOS ====================
 interface Usuario {
@@ -121,19 +122,39 @@ const App: React.FC = () => {
   // Cargar datos desde localStorage
   useEffect(() => {
     const savedUser = localStorage.getItem('usuarioActual');
-    if (savedUser) setUsuarioActual(JSON.parse(savedUser));
+    if (savedUser) {
+      try {
+        setUsuarioActual(JSON.parse(savedUser));
+      } catch {
+        localStorage.removeItem('usuarioActual');
+      }
+    }
 
     const savedUsuarios = localStorage.getItem('usuarios');
+    const adminDefault: Usuario = {
+      id: '1',
+      nombre: 'Administrador',
+      email: 'admin@donnet.com.ar',
+      rol: 'admin',
+      password: 'admin123'
+    };
+    
     if (savedUsuarios) {
-      setUsuarios(JSON.parse(savedUsuarios));
+      try {
+        const parsed = JSON.parse(savedUsuarios);
+        // Verificar que el admin exista
+        const adminExiste = parsed.find((u: Usuario) => u.email === 'admin@donnet.com.ar');
+        if (!adminExiste) {
+          parsed.push(adminDefault);
+          localStorage.setItem('usuarios', JSON.stringify(parsed));
+        }
+        setUsuarios(parsed);
+      } catch {
+        // Si hay error al parsear, resetear
+        localStorage.setItem('usuarios', JSON.stringify([adminDefault]));
+        setUsuarios([adminDefault]);
+      }
     } else {
-      const adminDefault: Usuario = {
-        id: '1',
-        nombre: 'Administrador',
-        email: 'admin@donnet.com.ar',
-        rol: 'admin',
-        password: 'admin123'
-      };
       setUsuarios([adminDefault]);
       localStorage.setItem('usuarios', JSON.stringify([adminDefault]));
     }
@@ -182,7 +203,7 @@ const App: React.FC = () => {
       localStorage.setItem('usuarioActual', JSON.stringify(user));
       setError('');
     } else {
-      setError('Credenciales incorrectas');
+      setError('Credenciales incorrectas. Verificá email y contraseña.');
     }
   };
 
@@ -192,21 +213,28 @@ const App: React.FC = () => {
     setPaginaActual('dashboard');
   };
 
+  const handleReset = () => {
+    if (confirm('¿Resetear todos los datos? Esto eliminará todos los usuarios, equipos, toners, etc.')) {
+      localStorage.clear();
+      window.location.reload();
+    }
+  };
+
   if (!usuarioActual) {
     return (
-      <div className="min-h-screen gradient-primary flex items-center justify-center p-4">
+      <div className="min-h-screen gradient-header flex items-center justify-center p-4">
         <div className="card p-8 w-full max-w-md fade-in">
           <div className="text-center mb-8">
-            <div className="w-20 h-20 gradient-primary rounded-3xl flex items-center justify-center mx-auto mb-4 text-white text-3xl">
+            <div className="w-20 h-20 gradient-card rounded-3xl flex items-center justify-center mx-auto mb-4 text-white text-3xl shadow-lg">
               🏢
             </div>
-            <h1 className="text-3xl font-bold mb-2">Donnet S.A.</h1>
+            <h1 className="text-3xl font-bold mb-2 text-gray-800">Donnet S.A.</h1>
             <p className="text-gray-500">Sistema de Gestión Integral</p>
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-sm font-semibold mb-2">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input" placeholder="admin@donnet.com.ar" required />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input" placeholder="tu@email.com" required />
             </div>
             <div>
               <label className="block text-sm font-semibold mb-2">Contraseña</label>
@@ -215,11 +243,15 @@ const App: React.FC = () => {
             {error && <div className="alert alert-danger">{error}</div>}
             <button type="submit" className="btn btn-primary w-full justify-center">Iniciar Sesión</button>
           </form>
-          <div className="mt-6 p-4 bg-gray-50 rounded-2xl text-xs text-gray-600">
-            <p className="font-semibold mb-2">Credenciales por defecto:</p>
-            <p>Email: admin@donnet.com.ar</p>
-            <p>Contraseña: admin123</p>
+          
+          <div className="mt-6 p-4 bg-blue-50 rounded-2xl text-xs text-blue-700">
+            <p className="font-semibold mb-1">ℹ️ Información</p>
+            <p>Si es tu primer acceso, contactá al administrador del sistema para obtener tus credenciales.</p>
           </div>
+          
+          <button onClick={handleReset} className="mt-4 w-full text-xs text-red-500 hover:text-red-700 underline">
+            🔄 Resetear todos los datos
+          </button>
         </div>
       </div>
     );
@@ -242,24 +274,26 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="glass sticky top-0 z-50 border-b border-gray-200">
+    <div className="min-h-screen">
+      <header className="gradient-header text-white shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 gradient-primary rounded-2xl flex items-center justify-center text-white text-xl">
+            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center text-white text-2xl border border-white/30">
               🏢
             </div>
             <div>
               <h1 className="text-xl font-bold">Donnet S.A.</h1>
-              <p className="text-xs text-gray-500">Sistema de Gestión Integral</p>
+              <p className="text-xs text-blue-100">Sistema de Gestión Integral</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="font-semibold">{usuarioActual.nombre}</p>
-              <p className="text-xs text-gray-500 capitalize">{usuarioActual.rol}</p>
+              <p className="text-xs text-blue-200 capitalize">{usuarioActual.rol}</p>
             </div>
-            <button onClick={handleLogout} className="btn btn-danger">Cerrar Sesión</button>
+            <button onClick={handleLogout} className="btn bg-white/20 hover:bg-white/30 text-white border border-white/30 backdrop-blur-sm">
+              Cerrar Sesión
+            </button>
           </div>
         </div>
       </header>
@@ -326,54 +360,69 @@ const Dashboard: React.FC<{ pcs: PCNode[]; toners: Toner[]; equipos: Equipo[]; s
 
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-bold">Dashboard</h2>
-      
+      <div>
+        <h2 className="text-3xl font-bold text-gray-800">Dashboard</h2>
+        <p className="text-sm text-gray-500 mt-1">Resumen general del sistema</p>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="stat-card">
-          <div className="stat-icon gradient-primary text-white">💻</div>
+          <div className="stat-icon gradient-card text-white">💻</div>
           <p className="text-gray-500 text-sm mb-1">Total Equipos</p>
-          <p className="text-4xl font-bold">{equipos.length}</p>
+          <p className="text-4xl font-bold text-gray-800">{equipos.length}</p>
+          <p className="text-xs text-gray-400 mt-2">Equipos registrados</p>
         </div>
         <div className="stat-card">
           <div className="stat-icon gradient-success text-white">🖥️</div>
           <p className="text-gray-500 text-sm mb-1">PCs Online</p>
-          <p className="text-4xl font-bold">{pcsOnline}/{pcs.length}</p>
+          <p className="text-4xl font-bold text-gray-800">{pcsOnline}/{pcs.length}</p>
+          <p className="text-xs text-gray-400 mt-2">Equipos conectados</p>
         </div>
         <div className="stat-card">
           <div className="stat-icon gradient-warning text-white">🖨️</div>
           <p className="text-gray-500 text-sm mb-1">Toners Bajo Stock</p>
-          <p className="text-4xl font-bold">{tonersBajoStock.length}</p>
+          <p className="text-4xl font-bold text-gray-800">{tonersBajoStock.length}</p>
+          <p className="text-xs text-gray-400 mt-2">Requieren atención</p>
         </div>
         <div className="stat-card">
-          <div className="stat-icon gradient-secondary text-white">📋</div>
+          <div className="stat-icon gradient-info text-white">📋</div>
           <p className="text-gray-500 text-sm mb-1">Solicitudes Pendientes</p>
-          <p className="text-4xl font-bold">{solicitudesPendientes}</p>
+          <p className="text-4xl font-bold text-gray-800">{solicitudesPendientes}</p>
+          <p className="text-xs text-gray-400 mt-2">Por procesar</p>
         </div>
       </div>
-
       {pcsEncendidasLargoPlazo.length > 0 && (
-        <div className="alert alert-warning">
-          <span className="text-2xl">⚠️</span>
-          <div>
+        <div className="alert alert-danger">
+          <span className="text-2xl">🔥</span>
+          <div className="flex-1">
             <h3 className="font-bold mb-2">PCs Encendidas por Más de 24 Horas</h3>
-            {pcsEncendidasLargoPlazo.map(pc => {
-              const horas = Math.floor((Date.now() - new Date(pc.encendidaDesde).getTime()) / (1000 * 60 * 60));
-              return (
-                <p key={pc.id} className="text-sm">{pc.nombre} - {pc.usuario} ({horas}h)</p>
-              );
-            })}
+            <div className="space-y-1">
+              {pcsEncendidasLargoPlazo.map(pc => {
+                const horas = Math.floor((Date.now() - new Date(pc.encendidaDesde).getTime()) / (1000 * 60 * 60));
+                return (
+                  <p key={pc.id} className="text-sm">
+                    <strong>{pc.nombre}</strong> - {horas}h encendida
+                    {pc.usuario && ` (${pc.usuario})`}
+                  </p>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
 
       {tonersBajoStock.length > 0 && (
-        <div className="alert alert-danger">
-          <span className="text-2xl">🚨</span>
-          <div>
+        <div className="alert alert-warning">
+          <span className="text-2xl">🖨️</span>
+          <div className="flex-1">
             <h3 className="font-bold mb-2">Toners con Stock Bajo</h3>
-            {tonersBajoStock.map(t => (
-              <p key={t.id} className="text-sm">{t.marca} {t.modelo} - Stock: {t.stockActual} (Mín: {t.stockMinimo})</p>
-            ))}
+            <div className="space-y-1">
+              {tonersBajoStock.map(t => (
+                <p key={t.id} className="text-sm">
+                  <strong>{t.marca} {t.modelo}</strong> - Stock: {t.stockActual} (Mín: {t.stockMinimo})
+                </p>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -382,7 +431,8 @@ const Dashboard: React.FC<{ pcs: PCNode[]; toners: Toner[]; equipos: Equipo[]; s
         <div className="alert alert-info">
           <span className="text-2xl">📅</span>
           <div>
-            <h3 className="font-bold">Tareas de Mantenimiento Pendientes: {tareasPendientes}</h3>
+            <h3 className="font-bold">Tareas de Mantenimiento Pendientes</h3>
+            <p className="text-sm mt-1">{tareasPendientes} tarea{tareasPendientes !== 1 ? 's' : ''} por realizar</p>
           </div>
         </div>
       )}
@@ -390,8 +440,13 @@ const Dashboard: React.FC<{ pcs: PCNode[]; toners: Toner[]; equipos: Equipo[]; s
       {equipos.length === 0 && toners.length === 0 && (
         <div className="card p-12 text-center">
           <div className="text-6xl mb-4">🚀</div>
-          <h3 className="text-2xl font-bold mb-2">¡Bienvenido al Sistema!</h3>
-          <p className="text-gray-500">Comenzá agregando equipos, toners y personal desde el menú lateral.</p>
+          <h3 className="text-2xl font-bold mb-2 text-gray-800">¡Bienvenido al Sistema!</h3>
+          <p className="text-gray-500 mb-4">Comenzá agregando equipos, toners y personal desde el menú lateral.</p>
+          <div className="flex gap-3 justify-center flex-wrap">
+            <button onClick={() => window.location.reload()} className="btn btn-primary">
+              🔄 Actualizar
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -860,11 +915,76 @@ const UsuariosPage: React.FC<{ usuarios: Usuario[]; setUsuarios: React.Dispatch<
 
 // ==================== MONITOREO ====================
 const MonitoreoPage: React.FC<{ pcs: PCNode[]; setPcs: React.Dispatch<React.SetStateAction<PCNode[]>> }> = ({ pcs, setPcs }) => {
-  const pcsOnline = pcs.filter(pc => pc.estado === 'online').length;
-  const pcsOffline = pcs.filter(pc => pc.estado === 'offline').length;
-
+  const [meshNodes, setMeshNodes] = useState<MeshNode[]>([]);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [meshCredentials, setMeshCredentials] = useState({ username: '', password: '' });
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<Partial<PCNode>>({ estado: 'online' });
+
+  // Suscribirse a cambios de MeshCentral
+  useEffect(() => {
+    const unsubscribe = meshCentralService.subscribe((nodes) => {
+      setMeshNodes(nodes);
+      setIsConnected(meshCentralService.isWebSocketConnected());
+    });
+
+    // Intentar conectar automáticamente
+    const tryAutoConnect = async () => {
+      const savedCreds = localStorage.getItem('meshCredentials');
+      if (savedCreds) {
+        const { username, password } = JSON.parse(savedCreds);
+        setIsConnecting(true);
+        const connected = await meshCentralService.connect(username, password);
+        setIsConnected(connected);
+        setIsConnecting(false);
+      }
+    };
+
+    tryAutoConnect();
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  const handleMeshLogin = async () => {
+    setIsConnecting(true);
+    const connected = await meshCentralService.connect(meshCredentials.username, meshCredentials.password);
+    setIsConnected(connected);
+    setIsConnecting(false);
+    
+    if (connected) {
+      localStorage.setItem('meshCredentials', JSON.stringify(meshCredentials));
+      setShowLoginModal(false);
+    }
+  };
+
+  // Convertir MeshNodes a PCNodes para compatibilidad
+  const allPcs: PCNode[] = [
+    ...pcs,
+    ...meshNodes.map(node => ({
+      id: node.id,
+      nombre: node.name,
+      usuario: '',
+      area: node.meshName || 'MeshCentral',
+      estado: node.connected ? 'online' as const : 'offline' as const,
+      ultimaConexion: new Date(node.lastConnect * 1000).toISOString(),
+      ip: node.ip,
+      encendidaDesde: new Date(node.lastConnect * 1000).toISOString()
+    }))
+  ];
+
+  const pcsOnline = allPcs.filter(pc => pc.estado === 'online').length;
+  const pcsOffline = allPcs.filter(pc => pc.estado === 'offline').length;
+
+  // Detectar PCs encendidas por más de 24 horas
+  const pcsEncendidasLargoPlazo = allPcs.filter(pc => {
+    if (pc.estado !== 'online') return false;
+    const horas = (Date.now() - new Date(pc.encendidaDesde).getTime()) / (1000 * 60 * 60);
+    return horas > 24;
+  });
 
   const handleSave = () => {
     const newPc: PCNode = { ...form, id: Date.now().toString(), ultimaConexion: new Date().toISOString(), encendidaDesde: new Date().toISOString() } as PCNode;
@@ -875,32 +995,171 @@ const MonitoreoPage: React.FC<{ pcs: PCNode[]; setPcs: React.Dispatch<React.SetS
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold">Monitoreo de PCs</h2>
-        <div className="flex gap-3">
-          <button onClick={() => setShowModal(true)} className="btn btn-primary">+ Nueva PC</button>
-          <a href="https://mesh.donnet.com.ar" target="_blank" rel="noopener noreferrer" className="btn btn-secondary">🔗 MeshCentral</a>
+      <div className="flex justify-between items-center flex-wrap gap-4">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-800">Monitoreo de PCs</h2>
+          <p className="text-sm text-gray-500 mt-1">Seguimiento en tiempo real de equipos conectados</p>
+        </div>
+        <div className="flex gap-3 flex-wrap">
+          <div className={`connection-status ${isConnected ? 'connection-online' : isConnecting ? 'connection-connecting' : 'connection-offline'}`}>
+            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 pulse' : isConnecting ? 'bg-yellow-500 pulse' : 'bg-red-500'}`}></span>
+            {isConnected ? 'MeshCentral Conectado' : isConnecting ? 'Conectando...' : 'Desconectado'}
+          </div>
+          <button onClick={() => setShowLoginModal(true)} className="btn btn-primary">
+            🔐 {isConnected ? 'Reconectar' : 'Conectar MeshCentral'}
+          </button>
+          <button onClick={() => setShowModal(true)} className="btn btn-secondary">+ Nueva PC</button>
+          <a href="https://mesh.donnet.com.ar" target="_blank" rel="noopener noreferrer" className="btn btn-secondary">🔗 Abrir MeshCentral</a>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-6">
-        <div className="stat-card"><div className="stat-icon gradient-success text-white">🟢</div><p className="text-gray-500 text-sm mb-1">Online</p><p className="text-4xl font-bold">{pcsOnline}</p></div>
-        <div className="stat-card"><div className="stat-icon gradient-dark text-white">⚫</div><p className="text-gray-500 text-sm mb-1">Offline</p><p className="text-4xl font-bold">{pcsOffline}</p></div>
-        <div className="stat-card"><div className="stat-icon gradient-primary text-white">💻</div><p className="text-gray-500 text-sm mb-1">Total</p><p className="text-4xl font-bold">{pcs.length}</p></div>
+
+      {/* Alerta de conexión */}
+      {!isConnected && !isConnecting && (
+        <div className="alert alert-warning">
+          <span className="text-2xl">⚠️</span>
+          <div>
+            <h3 className="font-bold mb-1">No conectado a MeshCentral</h3>
+            <p className="text-sm">Conectate a MeshCentral para ver los equipos en tiempo real. Los datos mostrados son locales.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Alerta de PCs encendidas por mucho tiempo */}
+      {pcsEncendidasLargoPlazo.length > 0 && (
+        <div className="alert alert-danger">
+          <span className="text-2xl">🔥</span>
+          <div className="flex-1">
+            <h3 className="font-bold mb-2">PCs Encendidas por Más de 24 Horas</h3>
+            <div className="space-y-1">
+              {pcsEncendidasLargoPlazo.map(pc => {
+                const horas = Math.floor((Date.now() - new Date(pc.encendidaDesde).getTime()) / (1000 * 60 * 60));
+                return (
+                  <p key={pc.id} className="text-sm">
+                    <strong>{pc.nombre}</strong> - {horas}h encendida
+                    {pc.usuario && ` (${pc.usuario})`}
+                  </p>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Estadísticas */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="stat-card">
+          <div className="stat-icon gradient-success text-white">🟢</div>
+          <p className="text-gray-500 text-sm mb-1">Online</p>
+          <p className="text-4xl font-bold text-gray-800">{pcsOnline}</p>
+          <p className="text-xs text-gray-400 mt-2">Equipos conectados</p>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon gradient-danger text-white">⚫</div>
+          <p className="text-gray-500 text-sm mb-1">Offline</p>
+          <p className="text-4xl font-bold text-gray-800">{pcsOffline}</p>
+          <p className="text-xs text-gray-400 mt-2">Equipos desconectados</p>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon gradient-card text-white">💻</div>
+          <p className="text-gray-500 text-sm mb-1">Total</p>
+          <p className="text-4xl font-bold text-gray-800">{allPcs.length}</p>
+          <p className="text-xs text-gray-400 mt-2">Equipos registrados</p>
+        </div>
       </div>
-      {pcs.length === 0 ? (
-        <div className="card p-12 text-center"><div className="text-6xl mb-4">🖥️</div><h3 className="text-xl font-bold mb-2">No hay PCs registradas</h3><p className="text-gray-500">Agregá PCs para monitorear su estado</p></div>
+
+      {/* Tabla de equipos */}
+      {allPcs.length === 0 ? (
+        <div className="card p-12 text-center">
+          <div className="text-6xl mb-4">🖥️</div>
+          <h3 className="text-xl font-bold mb-2 text-gray-800">No hay PCs registradas</h3>
+          <p className="text-gray-500 mb-4">Conectate a MeshCentral o agregá PCs manualmente</p>
+          <button onClick={() => setShowLoginModal(true)} className="btn btn-primary">
+            🔐 Conectar a MeshCentral
+          </button>
+        </div>
       ) : (
         <div className="table-container">
-          <div className="table-header font-semibold">Estado de Equipos</div>
-          {pcs.map(pc => (
-            <div key={pc.id} className="table-row flex justify-between items-center">
-              <div><p className="font-bold">{pc.nombre}</p><p className="text-sm text-gray-500">{pc.usuario} | {pc.area}</p></div>
+          <div className="table-header font-semibold flex justify-between items-center">
+            <span>Estado de Equipos</span>
+            <span className="text-xs text-blue-600">
+              {meshNodes.length > 0 && `${meshNodes.length} desde MeshCentral`}
+            </span>
+          </div>
+          {allPcs.map(pc => (
+            <div key={pc.id} className="table-row flex justify-between items-center flex-wrap gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-800">{pc.nombre}</p>
+                <p className="text-sm text-gray-500 truncate">
+                  {pc.usuario && `${pc.usuario} | `}
+                  {pc.area}
+                </p>
+              </div>
               <div className="flex items-center gap-4">
-                <p className="text-sm font-mono">{pc.ip}</p>
-                <span className={`badge ${pc.estado === 'online' ? 'badge-success' : pc.estado === 'offline' ? 'badge-danger' : 'badge-warning'}`}>{pc.estado === 'online' ? '● Online' : pc.estado === 'offline' ? '○ Offline' : '⚠ Error'}</span>
+                <p className="text-sm font-mono text-gray-600">{pc.ip}</p>
+                <span className={`badge ${pc.estado === 'online' ? 'badge-success' : pc.estado === 'offline' ? 'badge-danger' : 'badge-warning'}`}>
+                  {pc.estado === 'online' ? '● Online' : pc.estado === 'offline' ? '○ Offline' : '⚠ Error'}
+                </span>
+                {meshNodes.find(n => n.id === pc.id) && (
+                  <a 
+                    href={meshCentralService.getNodeUrl(pc.id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-secondary text-xs py-1 px-3"
+                  >
+                    🔗 Acceder
+                  </a>
+                )}
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal de Login MeshCentral */}
+      {showLoginModal && (
+        <div className="modal-overlay" onClick={() => setShowLoginModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-2xl font-bold mb-2 text-gray-800">Conectar a MeshCentral</h3>
+            <p className="text-sm text-gray-500 mb-6">Ingresá tus credenciales de MeshCentral para ver los equipos en tiempo real</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">Usuario</label>
+                <input 
+                  type="text" 
+                  value={meshCredentials.username}
+                  onChange={(e) => setMeshCredentials({ ...meshCredentials, username: e.target.value })}
+                  className="input" 
+                  placeholder="tu_usuario"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">Contraseña</label>
+                <input 
+                  type="password" 
+                  value={meshCredentials.password}
+                  onChange={(e) => setMeshCredentials({ ...meshCredentials, password: e.target.value })}
+                  className="input" 
+                  placeholder="••••••••"
+                />
+              </div>
+              {isConnecting && (
+                <div className="flex items-center gap-3 text-blue-600">
+                  <div className="loading-spinner" style={{ width: '20px', height: '20px', borderWidth: '3px' }}></div>
+                  <span className="text-sm">Conectando...</span>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={handleMeshLogin} disabled={isConnecting} className="btn btn-primary flex-1 justify-center disabled:opacity-50">
+                {isConnecting ? 'Conectando...' : 'Conectar'}
+              </button>
+              <button onClick={() => setShowLoginModal(false)} className="btn btn-secondary flex-1 justify-center">Cancelar</button>
+            </div>
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg text-xs text-blue-700">
+              <p className="font-semibold mb-1">ℹ️ Información</p>
+              <p>Las credenciales se guardan localmente en tu navegador. Se usa WebSocket para comunicación en tiempo real con mesh.donnet.com.ar</p>
+            </div>
+          </div>
         </div>
       )}
       {showModal && (
