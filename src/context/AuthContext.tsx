@@ -1,9 +1,13 @@
-﻿import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { auth } from '../lib/storage';
-import type { Usuario } from '../lib/types';
+﻿import React, { createContext, useContext, useState, ReactNode } from 'react';
+
+interface User {
+  email: string;
+  name: string;
+  role: 'admin' | 'user';
+}
 
 interface AuthContextType {
-  user: Usuario | null;
+  user: User | null;
   login: (email: string, password: string) => boolean;
   logout: () => void;
   isAuthenticated: boolean;
@@ -11,31 +15,46 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<Usuario | null>(null);
+// Credenciales por defecto
+const DEFAULT_USERS = [
+  { email: 'soporte@donnet.com.ar', password: '6mn78az39*', name: 'Administrador', role: 'admin' as const },
+  { email: 'usuario@donnet.com.ar', password: 'user123', name: 'Ana García', role: 'user' as const },
+];
 
-  useEffect(() => {
-    const currentUser = auth.getUser();
-    if (currentUser) setUser(currentUser);
-  }, []);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('toner_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
 
   const login = (email: string, password: string): boolean => {
-    const loggedUser = auth.login(email, password);
-    if (loggedUser) { setUser(loggedUser); return true; }
+    const foundUser = DEFAULT_USERS.find(
+      u => u.email === email && u.password === password
+    );
+    
+    if (foundUser) {
+      const userData = { email: foundUser.email, name: foundUser.name, role: foundUser.role };
+      setUser(userData);
+      localStorage.setItem('toner_user', JSON.stringify(userData));
+      return true;
+    }
     return false;
   };
 
-  const logout = () => { auth.logout(); setUser(null); };
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('toner_user');
+  };
 
   return (
     <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => {
+export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth debe usarse dentro de AuthProvider');
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
-};
+}

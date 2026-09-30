@@ -1,51 +1,52 @@
-import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import Login from './components/Login';
+import { AppProvider, useApp } from './context/AppContext';
 import Layout from './components/Layout';
+import Login from './components/Login';
 import Dashboard from './components/Dashboard';
-import Equipamiento from './components/Equipamiento';
-import Toners from './components/Toners';
-import Proveedores from './components/Proveedores';
-import Comprobantes from './components/Comprobantes';
-import ServiciosTecnicos from './components/ServiciosTecnicos';
-import Usuarios from './components/Usuarios';
-import MeshMonitor from './components/MeshMonitor';
+import Printers from './components/Printers';
+import Inventory from './components/Inventory';
+import Movements from './components/Movements';
+import Reports from './components/Reports';
 
-const AppContent: React.FC = () => {
+function PageRouter() {
+  const { currentPage } = useApp();
+
+  switch (currentPage) {
+    case 'dashboard':
+      return <Dashboard />;
+    case 'printers':
+      return <Printers />;
+    case 'inventory':
+      return <Inventory />;
+    case 'movements':
+      return <Movements />;
+    case 'reports':
+      return <Reports />;
+    default:
+      return <Dashboard />;
+  }
+}
+
+function AppContent() {
   const { isAuthenticated } = useAuth();
-  const [currentPage, setCurrentPage] = useState('dashboard');
 
   if (!isAuthenticated) {
     return <Login />;
   }
 
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'dashboard': return <Dashboard />;
-      case 'equipos': return <Equipamiento />;
-      case 'toners': return <Toners />;
-      case 'proveedores': return <Proveedores />;
-      case 'comprobantes': return <Comprobantes />;
-      case 'servicios': return <ServiciosTecnicos />;
-      case 'usuarios': return <Usuarios />;
-      case 'mesh': return <MeshMonitor />;
-      default: return <Dashboard />;
-    }
-  };
-
   return (
-    <Layout currentPage={currentPage} onNavigate={setCurrentPage}>
-      {renderPage()}
-    </Layout>
+    <AppProvider>
+      <Layout>
+        <PageRouter />
+      </Layout>
+    </AppProvider>
   );
-};
+}
 
-function App() {
+export default function App() {
   return (
     <AuthProvider>
       <AppContent />
     </AuthProvider>
   );
 }
-
-export default App;
