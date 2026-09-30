@@ -1,6 +1,3 @@
-// Servicio para conectar con Mesh Central
-// Documentación: https://github.com/Ylianst/MeshCentral
-
 const MESH_CENTRAL_URL = 'https://mesh.donnet.com.ar';
 
 export interface MeshNode {
@@ -37,18 +34,15 @@ class MeshCentralService {
   }
 
   async getNodes(): Promise<MeshNode[]> {
-    // TODO: Implementar conexión real con Mesh Central API
     console.log('Conectando con Mesh Central:', MESH_CENTRAL_URL);
     return [];
   }
 
   async getGroups(): Promise<MeshGroup[]> {
-    // TODO: Implementar conexión real con Mesh Central API
     return [];
   }
 
   async getNodeDetails(nodeId: string): Promise<MeshNode | null> {
-    // TODO: Implementar conexión real
     return null;
   }
 

@@ -15,7 +15,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Credenciales por defecto
 const DEFAULT_USERS = [
   { email: 'soporte@donnet.com.ar', password: '6mn78az39*', name: 'Administrador', role: 'admin' as const },
   { email: 'usuario@donnet.com.ar', password: 'user123', name: 'Ana García', role: 'user' as const },
