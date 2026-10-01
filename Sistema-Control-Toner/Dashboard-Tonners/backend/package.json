@@ -1,0 +1,18 @@
+{
+  "name": "meshcentral-proxy-backend",
+  "version": "1.0.0",
+  "description": "Backend proxy para MeshCentral",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "meshcentral": "^1.2.5",
+    "ws": "^8.22.0"
+  }
+}
