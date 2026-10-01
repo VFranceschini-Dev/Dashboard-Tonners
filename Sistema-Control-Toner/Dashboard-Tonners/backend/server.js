@@ -1,7 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import WebSocket from 'ws';
+import { exec } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -10,13 +15,14 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3001;
-const MESH_URL = process.env.MESH_URL || 'wss://mesh.donnet.com.ar/meshcontrol.ashx';
+const MESH_URL = process.env.MESH_URL || 'wss://mesh.donnet.com.ar';
 const MESH_USER = process.env.MESH_USER || 'vfranceschini@donnet.com.ar';
 const MESH_PASS = process.env.MESH_PASS || 'Vf040926*';
+const MESHCTRL_PATH = path.join(__dirname, 'node_modules', 'meshcentral', 'meshctrl.js');
 
 let cachedDevices = [];
 let lastFetch = 0;
-const CACHE_DURATION = 30000;
+const CACHE_DURATION = 30000; // 30 segundos
 
 function getDepartmentFromName(name) {
     const n = (name || '').toLowerCase();
@@ -32,65 +38,30 @@ function getDepartmentFromName(name) {
 
 function fetchDevicesFromMesh() {
     return new Promise((resolve, reject) => {
-        const ws = new WebSocket(MESH_URL);
-        let authenticated = false;
-        let devicesReceived = false;
-        let rawData = '';
+        const comando = `node "${MESHCTRL_PATH}" --url "${MESH_URL}" --loginuser "${MESH_USER}" --loginpass "${MESH_PASS}" ListDevices --json`;
 
-        const timeout = setTimeout(() => {
-            ws.close();
-            reject(new Error('Timeout conectando a MeshCentral'));
-        }, 15000);
+        console.log('Ejecutando MeshCtrl.js...');
 
-        ws.on('open', () => {
-            console.log('Conectado a MeshCentral');
-            ws.send(JSON.stringify({
-                action: 'login',
-                username: MESH_USER,
-                password: MESH_PASS
-            }));
-        });
+        exec(comando, { maxBuffer: 1024 * 1024 * 50, timeout: 30000 }, (error, stdout, stderr) => {
+            if (error) {
+                console.error('Error ejecutando MeshCtrl:', error.message);
+                if (stderr) console.error('Stderr:', stderr);
+                reject(new Error(`Error ejecutando MeshCtrl: ${error.message}`));
+                return;
+            }
 
-        ws.on('message', (data) => {
+            if (stderr) {
+                console.log('Stderr:', stderr);
+            }
+
             try {
-                const msg = JSON.parse(data.toString());
-                
-                if (msg.action === 'login' || msg.result === 'ok' || msg.authenticated) {
-                    authenticated = true;
-                    console.log('Autenticado en MeshCentral');
-                    ws.send(JSON.stringify({
-                        action: 'meshNodes',
-                        meshid: '*'
-                    }));
-                }
-                
-                if (msg.nodes || msg.machines || msg.result) {
-                    devicesReceived = true;
-                    rawData = data.toString();
-                }
+                const rawData = JSON.parse(stdout);
+                resolve(rawData);
             } catch (e) {
-                rawData = data.toString();
+                console.error('Error parseando JSON:', e.message);
+                console.error('Salida raw:', stdout.substring(0, 500));
+                reject(new Error('Error parseando respuesta de MeshCtrl'));
             }
-        });
-
-        ws.on('close', () => {
-            clearTimeout(timeout);
-            if (devicesReceived && rawData) {
-                try {
-                    const parsed = JSON.parse(rawData);
-                    const nodes = parsed.nodes || parsed.machines || parsed.result || [];
-                    resolve(nodes);
-                } catch (e) {
-                    reject(new Error('Error parseando respuesta'));
-                }
-            } else {
-                reject(new Error('No se recibieron dispositivos'));
-            }
-        });
-
-        ws.on('error', (err) => {
-            clearTimeout(timeout);
-            reject(err);
         });
     });
 }
@@ -102,15 +73,15 @@ async function getDevices() {
     }
 
     try {
-        console.log('Consultando MeshCentral...');
-        const rawNodes = await fetchDevicesFromMesh();
-        
-        const dispositivos = Array.isArray(rawNodes) ? rawNodes : Object.values(rawNodes);
-        
-        cachedDevices = dispositivos.map(node => {
-            const connected = node.conn === 1 || node.connected === true;
-            const name = node.name || node.rname || 'Sin nombre';
-            
+        console.log('Consultando MeshCentral via MeshCtrl.js...');
+        const rawData = await fetchDevicesFromMesh();
+
+        const nodes = Array.isArray(rawData) ? rawData : Object.values(rawData);
+
+        cachedDevices = nodes.map(node => {
+            const connected = node.conn === 1 || node.connected === true || node.powerState === 1;
+            const name = node.name || node.rname || node._id || 'Sin nombre';
+
             return {
                 id: node._id || node.id || Math.random().toString(),
                 name: name,
@@ -125,7 +96,7 @@ async function getDevices() {
                 department: getDepartmentFromName(name)
             };
         });
-        
+
         lastFetch = now;
         console.log(`Se obtuvieron ${cachedDevices.length} dispositivos de MeshCentral`);
         return cachedDevices;
@@ -145,8 +116,8 @@ app.get('/api/devices', async (req, res) => {
         res.json({
             success: true,
             total: dispositivos.length,
-            data: dispositivos,
-            source: 'MeshCentral Real',
+             dispositivos,
+            source: 'MeshCentral Real via MeshCtrl.js',
             timestamp: new Date().toISOString()
         });
     } catch (error) {
@@ -162,13 +133,13 @@ app.get('/api/alertas', async (req, res) => {
     try {
         const dispositivos = await getDevices();
         const alertas = dispositivos.filter(d => d.alert !== null || d.conn === 0);
-        
+
         res.json({
             success: true,
             total_red: dispositivos.length,
             incidentes: alertas.length,
-            data: alertas,
-            source: 'MeshCentral Real',
+             alertas,
+            source: 'MeshCentral Real via MeshCtrl.js',
             timestamp: new Date().toISOString()
         });
     } catch (error) {
@@ -186,6 +157,7 @@ app.get('/api/health', (req, res) => {
         message: 'Servidor proxy MeshCentral funcionando',
         mesh_url: MESH_URL,
         mesh_user: MESH_USER,
+        meshctrl_path: MESHCTRL_PATH,
         cached_devices: cachedDevices.length,
         timestamp: new Date().toISOString()
     });
@@ -195,12 +167,5 @@ app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
     console.log(`MeshCentral: ${MESH_URL}`);
     console.log(`Usuario: ${MESH_USER}`);
-    console.log(`Conectando a MeshCentral real...`);
-    
-    getDevices().then(devices => {
-        console.log(`Se cargaron ${devices.length} dispositivos desde MeshCentral`);
-    }).catch(err => {
-        console.log(`No se pudo conectar a MeshCentral: ${err.message}`);
-        console.log(`Los datos se obtendran cuando se soliciten`);
-    });
+    console.log(`MeshCtrl.js: ${MESHCTRL_PATH}`);
 });
