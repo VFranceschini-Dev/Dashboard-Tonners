@@ -1,387 +1,354 @@
-// ============================================
-// SERVICIO DE COMUNICACION CON MESHCENTRAL
-// Protocolo WebSocket nativo (wss://)
-// ============================================
+// Servicio de conexión a MeshCentral via WebSocket
+// Documentación: https://docs.meshcentral.com/meshctrl/
+// 
+// IMPORTANTE: MeshCentral usa WebSocket, NO REST API
+// Requiere configuración en el servidor MeshCentral:
+//   config.json -> "settings": { "AllowLoginToken": true, "allowFraming": true }
 
-export interface MeshConfig {
-  serverUrl: string;
-  username: string;
-  password: string;
-  workHoursStart: string;
-  workHoursEnd: string;
-}
+const MESH_CENTRAL_URL = 'https://mesh.donnet.com.ar';
+const MESH_WS_URL = 'wss://mesh.donnet.com.ar';
 
 export interface MeshNode {
-  _id: string;
+  id: string;
   name: string;
-  host: string;
+  hostname: string;
   ip: string;
   os: string;
-  agent: MeshAgent;
-  meshid: string;
-  rname: string;
-  domain: string;
-  lastConnect: number;
-  connectTime: number;
-  powerState: number;
+  status: 'connected' | 'disconnected';
+  lastSeen: string;
+  group?: string;
+  agentVersion?: string;
+  cpu?: string;
+  ram?: string;
+  icon?: number;
+  powerState?: number;
 }
 
-export interface MeshAgent {
+export interface MeshGroup {
   id: string;
-  ver: string;
-  caps: number;
-  computer: MeshComputer;
-}
-
-export interface MeshComputer {
   name: string;
-  host: string;
-  domain: string;
-  os: string;
-  arch: string;
-}
-
-export interface MeshAlert {
-  nodeId: string;
-  nodeName: string;
-  nodeIp: string;
-  type: 'off_hours' | 'disconnected' | 'high_cpu' | 'high_memory' | 'offline';
-  severity: 'low' | 'medium' | 'high';
-  message: string;
-  timestamp: number;
-  department: string;
-}
-
-export interface MeshConnectionState {
-  connected: boolean;
-  authenticated: boolean;
-  lastMessage: string;
+  description?: string;
   nodeCount: number;
-  alertCount: number;
-  error: string | null;
+  connectedCount: number;
 }
 
-type MessageHandler = (data: any) => void;
+export interface MeshServerInfo {
+  name: string;
+  port: number;
+  https: boolean;
+  redirPort: number;
+}
 
 class MeshCentralService {
   private ws: WebSocket | null = null;
-  private config: MeshConfig;
+  private apiKey: string | null = null;
+  private username: string | null = null;
+  private password: string | null = null;
+  private connected: boolean = false;
+  private nodes: MeshNode[] = [];
+  private groups: MeshGroup[] = [];
+  private listeners: ((event: string, data: any) => void)[] = [];
   private reconnectTimer: any = null;
-  private messageHandlers: MessageHandler[] = [];
-  private connectionState: MeshConnectionState = {
-    connected: false,
-    authenticated: false,
-    lastMessage: '',
-    nodeCount: 0,
-    alertCount: 0,
-    error: null
-  };
-  private stateChangeCallbacks: ((state: MeshConnectionState) => void)[] = [];
-  private alertCallbacks: ((alerts: MeshAlert[]) => void)[] = [];
-  private nodeCallbacks: ((nodes: MeshNode[]) => void)[] = [];
+  private lastUpdate: Date = new Date();
 
-  constructor() {
-    this.config = {
-      serverUrl: 'wss://mesh.donnet.com.ar/meshcontrol.ashx',
-      username: 'admin',
-      password: '',
-      workHoursStart: '08:00',
-      workHoursEnd: '18:00'
-    };
+  // Configurar credenciales
+  setCredentials(username: string, password: string) {
+    this.username = username;
+    this.password = password;
+    localStorage.setItem('mesh_username', username);
+    localStorage.setItem('mesh_password', btoa(password)); // Base64 encoding básico
   }
 
-  configure(config: Partial<MeshConfig>) {
-    this.config = { ...this.config, ...config };
+  getCredentials(): { username: string; password: string } | null {
+    const username = localStorage.getItem('mesh_username');
+    const passwordB64 = localStorage.getItem('mesh_password');
+    if (username && passwordB64) {
+      return { username, password: atob(passwordB64) };
+    }
+    return null;
   }
 
-  getConfig(): MeshConfig {
-    return { ...this.config };
+  setApiKey(key: string) {
+    this.apiKey = key;
+    localStorage.setItem('mesh_api_key', key);
   }
 
-  getState(): MeshConnectionState {
-    return { ...this.connectionState };
+  getApiKey(): string | null {
+    return this.apiKey || localStorage.getItem('mesh_api_key');
   }
 
-  onStateChange(callback: (state: MeshConnectionState) => void) {
-    this.stateChangeCallbacks.push(callback);
-    return () => {
-      this.stateChangeCallbacks = this.stateChangeCallbacks.filter(cb => cb !== callback);
-    };
-  }
+  // Conectar via WebSocket
+  async connect(): Promise<boolean> {
+    const creds = this.getCredentials();
+    if (!creds) {
+      console.warn('MeshCentral: No hay credenciales configuradas');
+      return false;
+    }
 
-  onAlerts(callback: (alerts: MeshAlert[]) => void) {
-    this.alertCallbacks.push(callback);
-    return () => {
-      this.alertCallbacks = this.alertCallbacks.filter(cb => cb !== callback);
-    };
-  }
-
-  onNodes(callback: (nodes: MeshNode[]) => void) {
-    this.nodeCallbacks.push(callback);
-    return () => {
-      this.nodeCallbacks = this.nodeCallbacks.filter(cb => cb !== callback);
-    };
-  }
-
-  private notifyStateChange() {
-    this.stateChangeCallbacks.forEach(cb => cb({ ...this.connectionState }));
-  }
-
-  private notifyAlerts(alerts: MeshAlert[]) {
-    this.alertCallbacks.forEach(cb => cb(alerts));
-  }
-
-  private notifyNodes(nodes: MeshNode[]) {
-    this.nodeCallbacks.forEach(cb => cb(nodes));
-  }
-
-  connect(): Promise<boolean> {
     return new Promise((resolve) => {
       try {
-        this.updateState({ connected: false, error: null, authenticated: false });
-        
-        this.ws = new WebSocket(this.config.serverUrl);
+        this.ws = new WebSocket(`${MESH_WS_URL}/meshrelay.ashx`);
 
         this.ws.onopen = () => {
-          this.updateState({ connected: true, error: null });
-          this.authenticate();
+          console.log('MeshCentral: WebSocket conectado');
+          this.connected = true;
+          
+          // Enviar autenticación
+          this.ws?.send(JSON.stringify({
+            action: 'auth',
+            username: creds.username,
+            password: creds.password
+          }));
+
           resolve(true);
         };
 
         this.ws.onmessage = (event) => {
-          this.handleMessage(event.data);
+          try {
+            const data = JSON.parse(event.data);
+            this.handleMessage(data);
+          } catch (e) {
+            console.error('MeshCentral: Error parseando mensaje', e);
+          }
         };
 
         this.ws.onerror = (error) => {
-          this.updateState({ connected: false, error: 'Error de conexion con MeshCentral' });
+          console.error('MeshCentral: Error WebSocket', error);
+          this.connected = false;
           resolve(false);
         };
 
         this.ws.onclose = () => {
-          this.updateState({ connected: false, authenticated: false });
+          console.log('MeshCentral: WebSocket cerrado');
+          this.connected = false;
           this.scheduleReconnect();
         };
 
-      } catch (e) {
-        this.updateState({ connected: false, error: 'No se pudo establecer conexion' });
+        // Timeout de conexión
+        setTimeout(() => {
+          if (!this.connected) {
+            resolve(false);
+          }
+        }, 5000);
+
+      } catch (error) {
+        console.error('MeshCentral: Error al conectar', error);
         resolve(false);
       }
     });
   }
 
-  disconnect() {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
+  // Manejar mensajes del WebSocket
+  private handleMessage(data: any) {
+    switch (data.action) {
+      case 'authComplete':
+        console.log('MeshCentral: Autenticación exitosa');
+        this.requestNodes();
+        this.requestGroups();
+        break;
+      
+      case 'nodes':
+        this.nodes = this.parseNodes(data.nodes || []);
+        this.lastUpdate = new Date();
+        this.notifyListeners('nodesUpdated', this.nodes);
+        break;
+      
+      case 'groups':
+        this.groups = data.groups || [];
+        this.notifyListeners('groupsUpdated', this.groups);
+        break;
+      
+      case 'nodeChange':
+        this.updateNode(data.node);
+        break;
+      
+      case 'nodeConnectionChange':
+        this.updateNodeStatus(data.nodeId, data.connected);
+        break;
+
+      default:
+        this.notifyListeners(data.action, data);
     }
+  }
+
+  // Parsear nodos del formato MeshCentral
+  private parseNodes(rawNodes: any[]): MeshNode[] {
+    return rawNodes.map((node: any) => ({
+      id: node._id || node.id,
+      name: node.name || 'Unknown',
+      hostname: node.hostname || node.rname || '',
+      ip: node.ip || node.host || '',
+      os: node.os || node.osdesc || '',
+      status: (node.conn === 1 || node.connected) ? 'connected' : 'disconnected',
+      lastSeen: node.lastConnectTime ? new Date(node.lastConnectTime * 1000).toISOString() : new Date().toISOString(),
+      group: node.meshName || node.groupName || '',
+      agentVersion: node.agentVersion || '',
+      cpu: node.cpu || '',
+      ram: node.ram ? `${Math.round(node.ram / 1024)}MB` : '',
+      icon: node.icon,
+      powerState: node.pwr,
+    }));
+  }
+
+  // Actualizar un nodo específico
+  private updateNode(nodeData: any) {
+    const index = this.nodes.findIndex(n => n.id === nodeData._id);
+    if (index >= 0) {
+      this.nodes[index] = { ...this.nodes[index], ...this.parseNodes([nodeData])[0] };
+      this.notifyListeners('nodesUpdated', this.nodes);
+    }
+  }
+
+  // Actualizar estado de conexión de un nodo
+  private updateNodeStatus(nodeId: string, connected: boolean) {
+    const node = this.nodes.find(n => n.id === nodeId);
+    if (node) {
+      node.status = connected ? 'connected' : 'disconnected';
+      node.lastSeen = new Date().toISOString();
+      this.notifyListeners('nodesUpdated', this.nodes);
+    }
+  }
+
+  // Solicitar lista de nodos
+  private requestNodes() {
+    if (this.ws && this.connected) {
+      this.ws.send(JSON.stringify({ action: 'nodes' }));
+    }
+  }
+
+  // Solicitar lista de grupos
+  private requestGroups() {
+    if (this.ws && this.connected) {
+      this.ws.send(JSON.stringify({ action: 'meshes' }));
+    }
+  }
+
+  // Programar reconexión
+  private scheduleReconnect() {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = setTimeout(() => {
+      console.log('MeshCentral: Intentando reconectar...');
+      this.connect();
+    }, 30000);
+  }
+
+  // Agregar listener de eventos
+  addListener(callback: (event: string, data: any) => void) {
+    this.listeners.push(callback);
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== callback);
+    };
+  }
+
+  private notifyListeners(event: string, data: any) {
+    this.listeners.forEach(listener => listener(event, data));
+  }
+
+  // ============================================
+  // MÉTODOS PÚBLICOS - Para usar en componentes
+  // ============================================
+
+  // Obtener todos los nodos
+  async getNodes(): Promise<MeshNode[]> {
+    if (!this.connected) {
+      const connected = await this.connect();
+      if (!connected) {
+        // Si no se puede conectar, retornar array vacío
+        // En producción, aquí se podría usar un backend proxy
+        return [];
+      }
+    }
+    return this.nodes;
+  }
+
+  // Obtener todos los grupos
+  async getGroups(): Promise<MeshGroup[]> {
+    if (!this.connected) await this.connect();
+    return this.groups;
+  }
+
+  // Obtener información del servidor
+  async getServerInfo(): Promise<MeshServerInfo | null> {
+    try {
+      const response = await fetch(`${MESH_CENTRAL_URL}/meshcentral.ashx/info`);
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (error) {
+      console.error('Error obteniendo info del servidor:', error);
+    }
+    return null;
+  }
+
+  // Obtener detalles de un nodo específico
+  async getNodeDetails(nodeId: string): Promise<MeshNode | null> {
+    return this.nodes.find(n => n.id === nodeId) || null;
+  }
+
+  // Obtener nodos conectados
+  async getConnectedNodes(): Promise<MeshNode[]> {
+    const nodes = await this.getNodes();
+    return nodes.filter(n => n.status === 'connected');
+  }
+
+  // Obtener nodos desconectados
+  async getDisconnectedNodes(): Promise<MeshNode[]> {
+    const nodes = await this.getNodes();
+    return nodes.filter(n => n.status === 'disconnected');
+  }
+
+  // Obtener estadísticas
+  async getStats(): Promise<{
+    total: number;
+    connected: number;
+    disconnected: number;
+    groups: number;
+  }> {
+    const nodes = await this.getNodes();
+    const groups = await this.getGroups();
+    return {
+      total: nodes.length,
+      connected: nodes.filter(n => n.status === 'connected').length,
+      disconnected: nodes.filter(n => n.status === 'disconnected').length,
+      groups: groups.length,
+    };
+  }
+
+  // Verificar si está conectado
+  isConnected(): boolean {
+    return this.connected;
+  }
+
+  // Desconectar
+  disconnect() {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
-    this.updateState({ connected: false, authenticated: false });
+    this.connected = false;
   }
 
-  private scheduleReconnect() {
-    if (this.reconnectTimer) return;
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null;
-      this.connect();
-    }, 5000);
+  // Obtener URL de MeshCentral
+  getMeshCentralUrl(): string {
+    return MESH_CENTRAL_URL;
   }
 
-  private updateState(partial: Partial<MeshConnectionState>) {
-    this.connectionState = { ...this.connectionState, ...partial };
-    this.notifyStateChange();
-  }
-
-  private authenticate() {
-    if (!this.ws) return;
-
-    const authPayload = {
-      action: 'login',
-      username: this.config.username,
-      password: this.config.password
-    };
-
-    this.ws.send(JSON.stringify(authPayload));
-    this.updateState({ lastMessage: 'Enviando autenticacion...' });
-  }
-
-  private handleMessage(rawData: string) {
-    try {
-      const data = JSON.parse(rawData);
-      this.updateState({ lastMessage: 'Mensaje recibido: ' + (data.action || data.type || 'data') });
-
-      switch (data.action || data.type) {
-        case 'login':
-        case 'auth':
-          this.handleAuthResponse(data);
-          break;
-        case 'meshNodes':
-        case 'nodes':
-        case 'meshmachines':
-          this.handleNodesResponse(data);
-          break;
-        case 'nodeChange':
-          this.handleNodeChange(data);
-          break;
-        default:
-          this.messageHandlers.forEach(h => h(data));
-          break;
-      }
-    } catch (e) {
-      // Mensaje no-JSON, ignorar
-    }
-  }
-
-  private handleAuthResponse(data: any) {
-    if (data.success || data.result === 'ok' || data.authenticated) {
-      this.updateState({ authenticated: true });
-      this.requestNodes();
-    } else {
-      this.updateState({ authenticated: false, error: 'Error de autenticacion' });
-    }
-  }
-
-  private handleNodesResponse(data: any) {
-    const nodes: MeshNode[] = data.nodes || data.machines || data.result || [];
-    this.updateState({ nodeCount: nodes.length });
-    this.notifyNodes(nodes);
+  // Obtener URL para embeber un nodo específico (remote desktop)
+  getNodeEmbedUrl(nodeId: string, viewMode: number = 11): string {
+    const creds = this.getCredentials();
+    if (!creds) return MESH_CENTRAL_URL;
     
-    const alerts = this.filterAlerts(nodes);
-    this.updateState({ alertCount: alerts.length });
-    this.notifyAlerts(alerts);
+    // viewMode: 11 = Remote Desktop, 12 = Terminal, 13 = Files
+    // hide: 15 = Ocultar header y tabs
+    return `${MESH_CENTRAL_URL}?login=${creds.username}:${creds.password}&node=${nodeId}&viewmode=${viewMode}&hide=15`;
   }
 
-  private handleNodeChange(data: any) {
-    if (data.node) {
-      const alerts = this.checkNodeAlerts(data.node);
-      if (alerts.length > 0) {
-        this.notifyAlerts(alerts);
-      }
-    }
-  }
-
-  requestNodes() {
-    if (!this.ws || !this.connectionState.authenticated) return;
-
-    const request = {
-      action: 'meshNodes',
-      meshid: '*'
-    };
-    this.ws.send(JSON.stringify(request));
-    this.updateState({ lastMessage: 'Solicitando lista de nodos...' });
-  }
-
-  requestNodeDetails(nodeId: string) {
-    if (!this.ws || !this.connectionState.authenticated) return;
-
-    const request = {
-      action: 'getNodeDetails',
-      nodeid: nodeId
-    };
-    this.ws.send(JSON.stringify(request));
-  }
-
-  private filterAlerts(nodes: MeshNode[]): MeshAlert[] {
-    const alerts: MeshAlert[] = [];
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTime = currentHour * 60 + currentMinute;
-
-    const [startH, startM] = this.config.workHoursStart.split(':').map(Number);
-    const [endH, endM] = this.config.workHoursEnd.split(':').map(Number);
-    const workStart = startH * 60 + startM;
-    const workEnd = endH * 60 + endM;
-
-    const isOffHours = currentTime < workStart || currentTime > workEnd;
-
-    nodes.forEach(node => {
-      if (isOffHours && node.powerState === 1) {
-        alerts.push({
-          nodeId: node._id,
-          nodeName: node.name || node.rname || 'Desconocido',
-          nodeIp: node.ip || node.host || 'N/A',
-          type: 'off_hours',
-          severity: 'medium',
-          message: 'PC encendida fuera de horario laboral: ' + (node.name || node.rname),
-          timestamp: Date.now(),
-          department: this.getDepartmentFromNode(node)
-        });
-      }
-
-      if (node.powerState === 0 && node.lastConnect) {
-        const lastSeen = new Date(node.lastConnect * 1000);
-        const hoursSinceLastSeen = (Date.now() - lastSeen.getTime()) / (1000 * 60 * 60);
-        if (hoursSinceLastSeen > 24) {
-          alerts.push({
-            nodeId: node._id,
-            nodeName: node.name || node.rname || 'Desconocido',
-            nodeIp: node.ip || node.host || 'N/A',
-            type: 'disconnected',
-            severity: 'high',
-            message: 'PC desconectada hace mas de 24h: ' + (node.name || node.rname),
-            timestamp: Date.now(),
-            department: this.getDepartmentFromNode(node)
-          });
-        }
-      }
-
-      if (node.agent && node.agent.caps === 0) {
-        alerts.push({
-          nodeId: node._id,
-          nodeName: node.name || node.rname || 'Desconocido',
-          nodeIp: node.ip || node.host || 'N/A',
-          type: 'offline',
-          severity: 'high',
-          message: 'Agente MeshCentral sin respuesta: ' + (node.name || node.rname),
-          timestamp: Date.now(),
-          department: this.getDepartmentFromNode(node)
-        });
-      }
-    });
-
-    return alerts;
-  }
-
-  private checkNodeAlerts(node: any): MeshAlert[] {
-    return this.filterAlerts([node]);
-  }
-
-  getDepartmentFromNode(node: MeshNode): string {
-    const name = (node.name || node.rname || '').toLowerCase();
-    if (name.includes('admin')) return 'Administracion';
-    if (name.includes('cont')) return 'Contabilidad';
-    if (name.includes('rrhh') || name.includes('recursos')) return 'RRHH';
-    if (name.includes('mkt') || name.includes('market')) return 'Marketing';
-    if (name.includes('it') || name.includes('soporte')) return 'IT';
-    if (name.includes('dir')) return 'Direccion';
-    if (name.includes('rec')) return 'Recepcion';
-    return 'Sin asignar';
-  }
-
-  simulateConnection() {
-    this.updateState({ connected: true, authenticated: true, error: null });
-    
-    const simulatedNodes: MeshNode[] = [
-      { _id: 'node1', name: 'ADMIN-PC01', host: 'admin-pc01', ip: '192.168.1.101', os: 'Windows 11 Pro', agent: { id: 'a1', ver: '1.0', caps: 127, computer: { name: 'ADMIN-PC01', host: 'admin-pc01', domain: 'DONNET', os: 'Windows 11 Pro', arch: 'x64' } }, meshid: 'mesh1', rname: 'ADMIN-PC01', domain: 'DONNET', lastConnect: Math.floor(Date.now() / 1000), connectTime: 3600, powerState: 1 },
-      { _id: 'node2', name: 'CONT-PC02', host: 'cont-pc02', ip: '192.168.1.102', os: 'Windows 11 Pro', agent: { id: 'a2', ver: '1.0', caps: 127, computer: { name: 'CONT-PC02', host: 'cont-pc02', domain: 'DONNET', os: 'Windows 11 Pro', arch: 'x64' } }, meshid: 'mesh1', rname: 'CONT-PC02', domain: 'DONNET', lastConnect: Math.floor(Date.now() / 1000), connectTime: 7200, powerState: 1 },
-      { _id: 'node3', name: 'RRHH-PC03', host: 'rrhh-pc03', ip: '192.168.1.103', os: 'Windows 10 Pro', agent: { id: 'a3', ver: '1.0', caps: 127, computer: { name: 'RRHH-PC03', host: 'rrhh-pc03', domain: 'DONNET', os: 'Windows 10 Pro', arch: 'x64' } }, meshid: 'mesh1', rname: 'RRHH-PC03', domain: 'DONNET', lastConnect: Math.floor(Date.now() / 1000), connectTime: 1800, powerState: 1 },
-      { _id: 'node4', name: 'IT-PC04', host: 'it-pc04', ip: '192.168.1.104', os: 'Windows 11 Pro', agent: { id: 'a4', ver: '1.0', caps: 127, computer: { name: 'IT-PC04', host: 'it-pc04', domain: 'DONNET', os: 'Windows 11 Pro', arch: 'x64' } }, meshid: 'mesh1', rname: 'IT-PC04', domain: 'DONNET', lastConnect: Math.floor(Date.now() / 1000), connectTime: 5400, powerState: 1 },
-      { _id: 'node5', name: 'MKT-PC05', host: 'mkt-pc05', ip: '192.168.1.105', os: 'Windows 11 Pro', agent: { id: 'a5', ver: '1.0', caps: 0, computer: { name: 'MKT-PC05', host: 'mkt-pc05', domain: 'DONNET', os: 'Windows 11 Pro', arch: 'x64' } }, meshid: 'mesh1', rname: 'MKT-PC05', domain: 'DONNET', lastConnect: Math.floor(Date.now() / 1000) - 86400, connectTime: 0, powerState: 0 },
-      { _id: 'node6', name: 'DIR-PC06', host: 'dir-pc06', ip: '192.168.1.106', os: 'Windows 11 Pro', agent: { id: 'a6', ver: '1.0', caps: 127, computer: { name: 'DIR-PC06', host: 'dir-pc06', domain: 'DONNET', os: 'Windows 11 Pro', arch: 'x64' } }, meshid: 'mesh1', rname: 'DIR-PC06', domain: 'DONNET', lastConnect: Math.floor(Date.now() / 1000), connectTime: 900, powerState: 1 },
-      { _id: 'node7', name: 'REC-PC07', host: 'rec-pc07', ip: '192.168.1.107', os: 'Windows 10 Pro', agent: { id: 'a7', ver: '1.0', caps: 127, computer: { name: 'REC-PC07', host: 'rec-pc07', domain: 'DONNET', os: 'Windows 10 Pro', arch: 'x64' } }, meshid: 'mesh1', rname: 'REC-PC07', domain: 'DONNET', lastConnect: Math.floor(Date.now() / 1000) - 172800, connectTime: 0, powerState: 0 },
-    ];
-
-    this.updateState({ nodeCount: simulatedNodes.length });
-    this.notifyNodes(simulatedNodes);
-
-    const alerts = this.filterAlerts(simulatedNodes);
-    this.updateState({ alertCount: alerts.length });
-    this.notifyAlerts(alerts);
+  // Última actualización
+  getLastUpdate(): Date {
+    return this.lastUpdate;
   }
 }
 
+// Exportar instancia singleton
 export const meshCentralService = new MeshCentralService();
-export default meshCentralService;
