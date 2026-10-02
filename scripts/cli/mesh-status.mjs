@@ -37,7 +37,7 @@ import https from 'node:https';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const envPath = resolve(__dirname, '../../.env');
 if (existsSync(envPath)) {
-  for (const line of readFileSync(envPath, 'utf8').splitlines()) {
+  for (const line of readFileSync(envPath, 'utf8').split('\n')) {
     const m = line.match(/^\s*(VITE_[A-Z_]+|[A-Z_]+)\s*=\s*(.*)\s*$/);
     if (m && !line.trim().startsWith('#') && !(m[1] in process.env)) {
       process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
