@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Printer as PrinterType } from '../types';
+import type { Printer as PrinterType } from '../types';
 import { Plus, Search, Edit2, Trash2, X, CheckCircle, AlertCircle, Wrench, MapPin, Building, FileText, Printer as PrinterIcon } from 'lucide-react';
 
 export default function Printers() {

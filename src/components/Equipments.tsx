@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Equipment } from '../types';
+import type { Equipment } from '../types';
 import { EQUIPMENT_CATEGORIES } from '../data';
 import {
   Plus, Search, Edit2, Trash2, X, Monitor, Laptop, Server,
-  HardDrive, Mouse, Package, Filter, Tag, User, Calendar
+  Mouse, Package, Tag, User
 } from 'lucide-react';
 
 const typeIcons = {

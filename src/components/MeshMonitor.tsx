@@ -5,7 +5,8 @@ import {
   AlertTriangle, Maximize2, Minimize2, Globe, Shield, Activity,
   ChevronDown, ChevronUp, Zap
 } from 'lucide-react';
-import { meshCentralService, MeshNode } from '../services/meshCentral';
+import { meshCentralService, MeshAuthError, MeshUnavailableError, type MeshNode } from '../services/meshCentral';
+import { MESH_CENTRAL_URL } from '../config';
 
 const WORK_START_HOUR = 8;
 const WORK_END_HOUR = 18;
@@ -14,6 +15,8 @@ export default function MeshMonitor() {
   const { alerts, setAlerts } = useApp();
   const [devices, setDevices] = useState<MeshNode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isConfigured, setIsConfigured] = useState(meshCentralService.isConfigured());
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [expandedView, setExpandedView] = useState(false);
   const [showIframe, setShowIframe] = useState(true);
@@ -28,12 +31,27 @@ export default function MeshMonitor() {
   const fetchMeshDevices = async () => {
     try {
       setLoading(true);
+      setError(null);
+      const configured = meshCentralService.isConfigured();
+      setIsConfigured(configured);
+      if (!configured) {
+        setDevices([]);
+        return;
+      }
       const nodes = await meshCentralService.getNodes();
       setDevices(nodes);
       setLastUpdate(new Date());
       checkAfterHoursDevices(nodes);
-    } catch (error) {
-      console.error('Error al obtener dispositivos:', error);
+    } catch (err) {
+      console.error('Error al obtener dispositivos:', err);
+      setDevices([]);
+      if (err instanceof MeshAuthError) {
+        setError('No autenticado contra MeshCentral. Configura VITE_MESH_API_KEY o el proxy VITE_MESH_PROXY_URL en el archivo .env.');
+      } else if (err instanceof MeshUnavailableError) {
+        setError(err.message);
+      } else {
+        setError('Error inesperado al consultar MeshCentral.');
+      }
     } finally {
       setLoading(false);
     }
@@ -212,7 +230,7 @@ export default function MeshMonitor() {
               </div>
               <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-md border border-gray-200 text-xs text-gray-600">
                 <Globe className="w-3 h-3" />
-                <span className="font-mono">mesh.donnet.com.ar</span>
+                <span className="font-mono">{MESH_CENTRAL_URL ? MESH_CENTRAL_URL.replace(/^https?:\/\//, "") : "sin configurar"}</span>
                 <Shield className="w-3 h-3 text-emerald-500" />
               </div>
             </div>
@@ -225,7 +243,7 @@ export default function MeshMonitor() {
                 {showIframe ? 'Ocultar' : 'Mostrar'}
               </button>
               <a 
-                href="https://mesh.donnet.com.ar" 
+                href={MESH_CENTRAL_URL || undefined} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-medium transition-colors"
@@ -246,7 +264,7 @@ export default function MeshMonitor() {
                 </div>
               </div>
               <iframe
-                src="https://mesh.donnet.com.ar"
+                src={MESH_CENTRAL_URL}
                 title="MeshCentral"
                 className="w-full h-[600px] border-0 relative z-10"
                 sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-top-navigation"
@@ -332,12 +350,12 @@ export default function MeshMonitor() {
           <p className="text-xs text-gray-500">
             Monitoreo en tiempo real vía{' '}
             <a 
-              href="https://mesh.donnet.com.ar" 
+              href={MESH_CENTRAL_URL || undefined} 
               target="_blank" 
               rel="noopener noreferrer" 
               className="text-blue-600 hover:text-blue-700 font-semibold hover:underline"
             >
-              mesh.donnet.com.ar
+              {MESH_CENTRAL_URL ? MESH_CENTRAL_URL.replace(/^https?:\/\//, "") : "sin configurar"}
             </a>
           </p>
           <div className="flex items-center gap-1 text-xs text-gray-400">

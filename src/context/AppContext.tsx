@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Printer, TonerItem, Movement, Alert, Page, Equipment, Supplier, Collaborator, Voucher } from '../types';
+import type React from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
+import type { Printer, TonerItem, Movement, Alert, Page, Equipment, Supplier, Collaborator, Voucher } from '../types';
 import { initialPrinters, initialToners, initialMovements, initialAlerts, initialEquipments, initialSuppliers, initialCollaborators, initialVouchers } from '../data';
 import { v4 as uuidv4 } from 'uuid';
 

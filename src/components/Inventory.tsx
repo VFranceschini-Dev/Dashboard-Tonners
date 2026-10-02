@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { TonerItem } from '../types';
+import type { TonerItem } from '../types';
 import { Plus, Search, Edit2, Trash2, X, AlertTriangle, Package, ArrowDownCircle } from 'lucide-react';
 
 const colorMap = {

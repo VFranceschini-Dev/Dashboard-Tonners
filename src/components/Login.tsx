@@ -10,18 +10,19 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    setTimeout(() => {
-      const success = login(email, password);
+    try {
+      const success = await login(email, password);
       if (!success) {
         setError('Credenciales inválidas. Verifique su email y contraseña.');
       }
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   return (

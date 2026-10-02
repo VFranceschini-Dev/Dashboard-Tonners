@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Voucher } from '../types';
+import type { Voucher } from '../types';
 import { Plus, Search, Edit2, Trash2, X, FileText, DollarSign, Calendar, Building, CheckCircle, Clock, XCircle } from 'lucide-react';
 
 const typeConfig = {
