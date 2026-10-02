@@ -18,10 +18,12 @@
  *     src/services/meshCentral.ts).
  *
  * Uso:
- *   node scripts/cli/mesh-connection-test.mjs --user admin@midominio --pass 'CONTRASEÑA' --pc NOMBRE_PC
- *   node scripts/cli/mesh-connection-test.mjs --token CLAVE_SERVERSECRET --pc NOMBRE_PC
+ *   node scripts/cli/mesh-connection-test.mjs NOMBRE_PC --user admin@midominio --pass 'CONTRASEÑA'
+ *   node scripts/cli/mesh-connection-test.mjs NOMBRE_PC --token CLAVE_SERVERSECRET
+ *   (la PC también puede pasarse con --pc NOMBRE_PC; sin PC se lista el inventario)
  *
  * Parámetros:
+ *   NOMBRE_PC (posición 1)  Nombre, hostname o id parcial de la PC a consultar
  *   --url    URL base MeshCentral        (def: $MESH_URL o https://mesh.donnet.com.ar)
  *   --user   Usuario administrador MeshCentral   (o $MESH_USER)
  *   --pass   Contraseña del usuario              (o $MESH_PASS)
@@ -66,24 +68,33 @@ function parseArgs(argv) {
   return out;
 }
 
-const args = parseArgs(process.argv.slice(2));
+const argv = process.argv.slice(2);
+const args = parseArgs(argv);
+// Nombre de la PC: se puede pasar como POSICIÓN 1 (recomendado), con --pc, o por $MESH_PC
+const flagsWithValues = new Set(['url', 'user', 'pass', 'token', 'pc']);
+const positional = argv.filter((a, i) =>
+  !a.startsWith('--') && !(i > 0 && flagsWithValues.has(argv[i - 1].slice(2))));
+const PC = args.pc || positional[0] || process.env.MESH_PC || '';
+
 const BASE = (args.url || process.env.MESH_URL ||
   process.env.VITE_MESH_CENTRAL_URL || 'https://mesh.donnet.com.ar').replace(/\/+$/, '');
 const USER = args.user || process.env.MESH_USER || '';
 const PASS = args.pass || process.env.MESH_PASS || '';
 const TOKEN = args.token || process.env.MESH_TOKEN || process.env.VITE_MESH_API_KEY || '';
-// PC: se pasa siempre con --pc (también acepta $MESH_PC)
-const PC = args.pc || process.env.MESH_PC || '';
 
 if (!USER && !TOKEN) {
   console.error('Uso:');
-  console.error("  node scripts/cli/mesh-connection-test.mjs --user ADMIN --pass 'CLAVE' --pc NOMBRE_PC");
-  console.error('  node scripts/cli/mesh-connection-test.mjs --token SERVER_SECRET --pc NOMBRE_PC');
+  console.error("  node scripts/cli/mesh-connection-test.mjs NOMBRE_PC --user ADMIN --pass 'CLAVE'");
+  console.error('  node scripts/cli/mesh-connection-test.mjs NOMBRE_PC --token SERVER_SECRET');
+  console.error('  (el nombre de la PC también puede pasarse con --pc; sin PC se lista el inventario)');
   console.error('\nOpciones: --url (def: https://mesh.donnet.com.ar) --insecure --json');
   process.exit(2);
 }
 if (!PC) {
-  console.error('⚠️  Falta --pc <nombre>. Se listará igualmente el inventario de dispositivos.');
+  console.error('ℹ️  Sin PC en el comando: se probara la conexión y se listará el inventario de dispositivos.');
+  console.error('    Para consultar una PC específica: node scripts/cli/mesh-connection-test.mjs MI-PC --user ... --pass ...');
+} else {
+  console.log(`🎯 Consultando PC: "${PC}"`);
 }
 
 const steps = [];
@@ -212,8 +223,12 @@ const pc = q ? (devices.find(d => norm(d.name) === q || norm(d.hostname) === q |
   ?? devices.find(d => norm(d.name).includes(q) || norm(d.hostname).includes(q))) : null;
 
 if (q && !pc) {
-  step(`PC "${PC}" encontrada`, false, 'No hay coincidencias. Primeras 10: ' +
-    devices.slice(0, 10).map(d => d.name).filter(Boolean).join(', '));
+  const names = devices.map(d => d.name || d._id).filter(Boolean);
+  // Sugerencias por coincidencia parcial del inicio del nombre
+  const sug = names.filter(n => n.toLowerCase().startsWith(q.slice(0, Math.min(4, q.length)))).slice(0, 8);
+  step(`PC "${PC}" encontrada`, false,
+    `No hay coincidencias entre ${devices.length} dispositivo(s).` +
+    (sug.length ? ` Sugestiones: ${sug.join(', ')}` : ` Ejemplos: ${names.slice(0, 8).join(', ')}`));
   process.exit(4);
 }
 if (pc) step(`PC "${pc.name}" encontrada`, true);
