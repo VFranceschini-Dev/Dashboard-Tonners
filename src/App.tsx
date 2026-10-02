@@ -1,5 +1,6 @@
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider, useApp } from './context/AppContext';
+import { ThemeProvider } from './context/ThemeContext';
 import Layout from './components/Layout';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -11,6 +12,8 @@ import Equipments from './components/Equipments';
 import Suppliers from './components/Suppliers';
 import Collaborators from './components/Collaborators';
 import Vouchers from './components/Vouchers';
+import AdminPanel from './components/AdminPanel';
+import MeshTestConnection from './components/MeshTestConnection';
 
 function PageRouter() {
   const { currentPage } = useApp();
@@ -34,6 +37,10 @@ function PageRouter() {
       return <Collaborators />;
     case 'vouchers':
       return <Vouchers />;
+    case 'admin':
+      return <AdminPanel />;
+    case 'mesh-test':
+      return <MeshTestConnection />;
     default:
       return <Dashboard />;
   }
@@ -57,8 +64,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

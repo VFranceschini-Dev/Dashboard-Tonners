@@ -104,5 +104,5 @@ export interface Voucher {
   status: 'pending' | 'approved' | 'rejected' | 'processed';
   notes: string;
 }
-
-export type Page = 'dashboard' | 'printers' | 'inventory' | 'movements' | 'reports' | 'equipments' | 'suppliers' | 'collaborators' | 'vouchers';
+// Se agregó 'admin' y 'mesh-test' al tipo Page
+export type Page = 'dashboard' | 'printers' | 'inventory' | 'movements' | 'reports' | 'equipments' | 'suppliers' | 'collaborators' | 'vouchers' | 'admin' | 'mesh-test';
