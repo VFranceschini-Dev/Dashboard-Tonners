@@ -193,6 +193,37 @@ export default function MeshMonitor() {
       </div>
 
       <div className="p-6">
+        {/* Error / Configuración pendiente */}
+        {error && (
+          <div className="mb-6 p-4 bg-gradient-to-r from-rose-50 to-red-50 border border-rose-200 rounded-xl flex items-start gap-3">
+            <div className="p-2 bg-rose-100 rounded-lg flex-shrink-0">
+              <AlertTriangle className="w-5 h-5 text-rose-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-rose-900">Error de conexión con MeshCentral</p>
+              <p className="text-xs text-rose-700 mt-1">{error}</p>
+            </div>
+            <button onClick={fetchMeshDevices} className="text-xs font-medium text-rose-700 hover:text-rose-900 underline flex-shrink-0">
+              Reintentar
+            </button>
+          </div>
+        )}
+        {!isConfigured && !loading && (
+          <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-xl flex items-start gap-3">
+            <div className="p-2 bg-gray-100 rounded-lg flex-shrink-0">
+              <Server className="w-5 h-5 text-gray-500" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-gray-700">MeshCentral no configurado</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Definí <code className="bg-gray-100 px-1 rounded">VITE_MESH_API_KEY</code> (ServerSecret) o
+                <code className="bg-gray-100 px-1 rounded"> VITE_MESH_PROXY_URL</code> en el archivo <code className="bg-gray-100 px-1 rounded">.env</code>.
+                Podés verificar la conexión con: <code className="bg-gray-100 px-1 rounded">npm run mesh:test -- --user ADMIN --pass CLAVE --pc NOMBRE_PC</code>
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* After Hours Alert */}
         {isAfterHours() && onlineCount > 0 && (
           <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl flex items-start gap-3">
