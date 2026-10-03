@@ -76,13 +76,13 @@ export default function Reports() {
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2"><DollarSign size={18} className="text-emerald-500" /> Gasto Mensual en Tóner</h3>
           <ResponsiveContainer width="100%" height={250}>
-            <AreaChart data={monthlySpending}><CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" /><XAxis dataKey="month" fontSize={12} /><YAxis fontSize={12} /><Tooltip formatter={(value: number) => [`$${value}`, 'Gasto']} /><Area type="monotone" dataKey="gasto" stroke="#10b981" fill="#10b981" fillOpacity={0.1} strokeWidth={2} /></AreaChart>
+            <AreaChart data={monthlySpending}><CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" /><XAxis dataKey="month" fontSize={12} /><YAxis fontSize={12} /><Tooltip formatter={(value) => [`$${Number(value) || 0}`, 'Gasto']} /><Area type="monotone" dataKey="gasto" stroke="#10b981" fill="#10b981" fillOpacity={0.1} strokeWidth={2} /></AreaChart>
           </ResponsiveContainer>
         </div>
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2"><Package size={18} className="text-blue-500" /> Distribución por Marca</h3>
           <ResponsiveContainer width="100%" height={250}>
-            <PieChart><Pie data={brandData} cx="50%" cy="50%" outerRadius={90} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>{brandData.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip /></PieChart>
+            <PieChart><Pie data={brandData} cx="50%" cy="50%" outerRadius={90} dataKey="value" label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>{brandData.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip /></PieChart>
           </ResponsiveContainer>
         </div>
       </div>

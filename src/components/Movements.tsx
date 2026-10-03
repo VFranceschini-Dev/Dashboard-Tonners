@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Movement } from '../types';
+import { type Movement } from '../types';
 import { Plus, Search, X, CheckCircle, Package, ArrowLeftRight, Trash2, Filter, Calendar } from 'lucide-react';
 
 const typeConfig = {

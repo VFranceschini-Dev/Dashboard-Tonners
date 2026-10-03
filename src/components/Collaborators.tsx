@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Collaborator } from '../types';
+import { type Collaborator } from '../types';
 import { DEPARTMENTS } from '../data';
 import { Plus, Search, Edit2, Trash2, X, Users, Mail, Phone, Building, Briefcase, Calendar, CheckCircle, XCircle, Monitor } from 'lucide-react';
 
