@@ -1,51 +1,145 @@
-import { useState } from 'react';
-import { User } from '../types';
-import { Printer, Lock, Mail, AlertCircle } from 'lucide-react';
-import { ADMIN_CREDENTIALS } from '../data';
+import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { Printer, Eye, EyeOff, AlertCircle, Shield, Server } from 'lucide-react';
 
-interface Props { users: User[]; onLogin: (user: User) => void; }
-
-export default function LoginPage({ users, onLogin }: Props) {
+export default function Login() {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-      const admin = users.find(u => u.email === ADMIN_CREDENTIALS.email);
-      if (admin) onLogin(admin);
-      return;
-    }
-    const user = users.find(u => u.email === email && u.active);
-    if (user) { onLogin(user); return; }
-    setError('Credenciales invalidas. Verifique usuario y contrasena.');
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    setTimeout(() => {
+      const success = login(email, password);
+      if (!success) {
+        setError('Credenciales inválidas. Verifique su email y contraseña.');
+      }
+      setLoading(false);
+    }, 500);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 p-4 relative overflow-hidden">
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.3) 1px, transparent 0)`,
+          backgroundSize: '32px 32px'
+        }} />
+      </div>
+      
+      <div className="absolute top-0 left-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" />
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" />
+
+      <div className="relative w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-blue-500/30">
-            <Printer className="w-10 h-10 text-white" />
+          <div className="inline-flex items-center justify-center mb-4">
+            <div className="relative">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-2xl shadow-blue-600/30 flex items-center justify-center">
+                <Printer size={40} className="text-white" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full border-4 border-slate-900 flex items-center justify-center">
+                <Server size={10} className="text-white" />
+              </div>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-white">Donnet Control</h1>
-          <p className="text-slate-400 mt-2">Sistema de Control de Toner y Equipamientos</p>
-          <p className="text-xs text-slate-500 mt-1">Monitoreo via mesh.donnet.com.ar</p>
-        </div>
-        <div className="glass-card p-8">
-          <h2 className="text-xl font-semibold text-white mb-6">Iniciar Sesion</h2>
-          {error && <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 mb-4"><AlertCircle className="w-4 h-4 text-red-400" /><p className="text-sm text-red-400">{error}</p></div>}
-          <div className="space-y-4">
-            <div><label className="block text-sm font-medium text-slate-300 mb-2">Email</label>
-              <div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input type="email" value={email} onChange={e => { setEmail(e.target.value); setError(''); }} placeholder="usuario@donnet.com.ar" className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" /></div></div>
-            <div><label className="block text-sm font-medium text-slate-300 mb-2">Contrasena</label>
-              <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input type="password" value={password} onChange={e => { setPassword(e.target.value); setError(''); }} placeholder="Ingrese su contrasena" className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div></div>
-            <button onClick={handleLogin} className="w-full py-3 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors shadow-lg shadow-blue-500/25">Ingresar al Sistema</button>
+          <h1 className="text-3xl font-bold text-white mb-2">Control de Tóner</h1>
+          <p className="text-blue-200 text-sm">Sistema de Gestión de Impresoras</p>
+          <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-sm rounded-full border border-white/20">
+            <Shield size={12} className="text-emerald-300" />
+            <span className="text-xs text-blue-100">Conexión segura</span>
           </div>
         </div>
-        <p className="text-center text-xs text-slate-500 mt-6">Donnet IT Management System v3.0</p>
+
+        <div className="bg-white rounded-2xl shadow-2xl p-8 backdrop-blur-sm">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-1">Iniciar Sesión</h2>
+            <p className="text-sm text-gray-500">Ingrese sus credenciales para continuar</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white outline-none transition-all text-sm"
+                placeholder="usuario@empresa.com"
+                required
+                disabled={loading}
+                autoComplete="email"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Contraseña</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white outline-none transition-all text-sm"
+                  placeholder="••••••••"
+                  required
+                  disabled={loading}
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                  disabled={loading}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                <AlertCircle size={18} className="flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading || !email || !password}
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 focus:ring-4 focus:ring-blue-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Ingresando...
+                </span>
+              ) : (
+                'Ingresar'
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+            <div className="flex items-start gap-2">
+              <Shield size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-blue-800 leading-relaxed">
+                Si olvidó su contraseña, contacte al administrador del sistema.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-center text-blue-200 text-xs mt-6">
+          © 2024 Sistema de Control de Tóner - Desarrollado por <span className="font-semibold">Area Sistemas PEDSA</span>
+        </p>
       </div>
     </div>
   );

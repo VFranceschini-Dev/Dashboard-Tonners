@@ -1,61 +1,376 @@
 import { useState } from 'react';
-import { TonerInventory, Supplier } from '../types';
-import { Package, Edit2, Save, X, Search, AlertTriangle, DollarSign } from 'lucide-react';
-interface Props { inventory: TonerInventory[]; setInventory: (i: TonerInventory[]) => void; suppliers: Supplier[]; }
-export default function InventoryPage({ inventory, setInventory, suppliers }: Props) {
+import { useApp } from '../context/AppContext';
+import { TonerItem } from '../types';
+import {
+  Plus, Search, Edit2, Trash2, X, AlertTriangle, Package, ArrowDownCircle
+} from 'lucide-react';
+
+const colorMap = {
+  black: { bg: 'bg-gray-800', label: 'Negro', dot: 'bg-gray-800' },
+  cyan: { bg: 'bg-cyan-500', label: 'Cian', dot: 'bg-cyan-500' },
+  magenta: { bg: 'bg-pink-500', label: 'Magenta', dot: 'bg-pink-500' },
+  yellow: { bg: 'bg-yellow-400', label: 'Amarillo', dot: 'bg-yellow-400' },
+};
+
+export default function Inventory() {
+  const { toners, addToner, updateToner, deleteToner, addMovement } = useApp();
+  const [search, setSearch] = useState('');
+  const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<Partial<TonerInventory>>({});
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterColor, setFilterColor] = useState('all');
-  var filtered = inventory.filter(function(t) {
-    var mc = filterColor === 'all' || t.color === filterColor;
-    var ms = t.model.toLowerCase().includes(searchTerm.toLowerCase());
-    return mc && ms;
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showRestock, setShowRestock] = useState<string | null>(null);
+  const [restockQty, setRestockQty] = useState(1);
+
+  const [form, setForm] = useState<Omit<TonerItem, 'id'>>({
+    model: '', brand: '', color: 'black', stock: 0, minStock: 2, maxStock: 10,
+    unitPrice: 0, supplier: '', lastRestock: '',
   });
-  function getColorDot(c: string) { return c === 'black' ? 'bg-gray-800 border-2 border-gray-600' : c === 'cyan' ? 'bg-cyan-400' : c === 'magenta' ? 'bg-pink-500' : 'bg-yellow-400'; }
-  function getColorLabel(c: string) { return c === 'black' ? 'Negro' : c === 'cyan' ? 'Cian' : c === 'magenta' ? 'Magenta' : 'Amarillo'; }
-  function startEdit(t: TonerInventory) { setEditingId(t.id); setEditForm({ model: t.model, quantity: t.quantity, minStock: t.minStock, maxStock: t.maxStock, unitCost: t.unitCost }); }
-  function saveEdit() { if (editingId) { setInventory(inventory.map(function(t) { return t.id === editingId ? Object.assign({}, t, editForm) : t; })); setEditingId(null); setEditForm({}); } }
-  var totalValue = inventory.reduce(function(s, t) { return s + (t.quantity * t.unitCost); }, 0);
-  var lowStock = inventory.filter(function(t) { return t.quantity <= t.minStock; }).length;
-  var inputCls = "w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50";
-  function getSupplierName(id: string) { var s = suppliers.find(function(s) { return s.id === id; }); return s ? s.name : 'N/A'; }
-  return (<div className="space-y-6">
-    <div><h1 className="text-2xl lg:text-3xl font-bold text-white">Inventario de Toner</h1><p className="text-slate-400 text-sm mt-1">Control de stock, minimo/maximo y reabastecimiento</p></div>
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <div className="glass-card p-4 flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center"><Package className="w-5 h-5 text-blue-400" /></div>
-        <div><p className="text-xl font-bold text-white">{inventory.length}</p><p className="text-xs text-slate-400">Modelos</p></div></div>
-      <div className="glass-card p-4 flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center"><DollarSign className="w-5 h-5 text-emerald-400" /></div>
-        <div><p className="text-xl font-bold text-white">${totalValue.toLocaleString()}</p><p className="text-xs text-slate-400">Valor total</p></div></div>
-      <div className={"glass-card p-4 flex items-center gap-4 " + (lowStock > 0 ? 'border-amber-500/30' : '')}><div className={"w-10 h-10 rounded-xl flex items-center justify-center " + (lowStock > 0 ? 'bg-amber-500/20' : 'bg-emerald-500/20')}><AlertTriangle className={"w-5 h-5 " + (lowStock > 0 ? 'text-amber-400' : 'text-emerald-400')} /></div>
-        <div><p className={"text-xl font-bold " + (lowStock > 0 ? 'text-amber-400' : 'text-emerald-400')}>{lowStock}</p><p className="text-xs text-slate-400">Bajo stock minimo</p></div></div></div>
-    <div className="flex flex-col sm:flex-row gap-3">
-      <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input type="text" placeholder="Buscar modelo..." value={searchTerm} onChange={function(e) { setSearchTerm(e.target.value); }} className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" /></div>
-      <div className="flex gap-2 flex-wrap">{['all', 'black', 'cyan', 'magenta', 'yellow'].map(function(c) { return (
-        <button key={c} onClick={function() { setFilterColor(c); }} className={"flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all " + (filterColor === c ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10')}>
-          {c !== 'all' && <span className={"w-3 h-3 rounded-full " + getColorDot(c)}></span>}{c === 'all' ? 'Todos' : getColorLabel(c)}</button>); })}</div></div>
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-      {filtered.map(function(item) { return (<div key={item.id} className={"glass-card p-5 hover:border-white/20 transition-all group " + (item.quantity <= item.minStock ? 'border-amber-500/30' : '')}>
-        {editingId === item.id ? (<div className="space-y-3">
-          <input type="text" value={editForm.model || ''} onChange={function(e) { setEditForm(Object.assign({}, editForm, { model: e.target.value })); }} className={inputCls} />
-          <div className="grid grid-cols-2 gap-2">
-            <input type="number" value={editForm.quantity || 0} onChange={function(e) { setEditForm(Object.assign({}, editForm, { quantity: parseInt(e.target.value) || 0 })); }} className={inputCls} placeholder="Cantidad" />
-            <input type="number" value={editForm.unitCost || 0} onChange={function(e) { setEditForm(Object.assign({}, editForm, { unitCost: parseFloat(e.target.value) || 0 })); }} className={inputCls} placeholder="Costo" /></div>
-          <div className="grid grid-cols-2 gap-2">
-            <input type="number" value={editForm.minStock || 0} onChange={function(e) { setEditForm(Object.assign({}, editForm, { minStock: parseInt(e.target.value) || 0 })); }} className={inputCls} placeholder="Stock Min" />
-            <input type="number" value={editForm.maxStock || 0} onChange={function(e) { setEditForm(Object.assign({}, editForm, { maxStock: parseInt(e.target.value) || 0 })); }} className={inputCls} placeholder="Stock Max" /></div>
-          <div className="flex gap-2"><button onClick={saveEdit} className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm hover:bg-emerald-500/30"><Save className="w-4 h-4" />Guardar</button>
-            <button onClick={function() { setEditingId(null); setEditForm({}); }} className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white/10 text-slate-400 rounded-lg text-sm hover:bg-white/20"><X className="w-4 h-4" />Cancelar</button></div></div>) : (<>
-          <div className="flex items-start justify-between"><div className="flex items-center gap-3">
-            <div className={"w-8 h-8 rounded-full " + getColorDot(item.color) + " flex items-center justify-center"}><span className="text-xs font-bold text-white">{item.model[0]}</span></div>
-            <div><h3 className="text-sm font-semibold text-white">{item.model}</h3><p className="text-xs text-slate-400">{getColorLabel(item.color)} - Proveedor: {getSupplierName(item.supplierId)}</p></div></div>
-            <div className="flex items-center gap-2">{item.quantity <= item.minStock && <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 animate-pulse">Bajo!</span>}
-              <button onClick={function() { startEdit(item); }} className="p-1.5 rounded-lg hover:bg-white/10 opacity-0 group-hover:opacity-100"><Edit2 className="w-3.5 h-3.5 text-slate-400" /></button></div></div>
-          <div className="mt-4 grid grid-cols-2 gap-3"><div className="p-2 rounded-lg bg-white/5"><p className="text-lg font-bold text-white">{item.quantity}</p><p className="text-xs text-slate-400">En stock (min:{item.minStock} max:{item.maxStock})</p></div>
-            <div className="p-2 rounded-lg bg-white/5"><p className="text-lg font-bold text-white">${item.unitCost}</p><p className="text-xs text-slate-400">Costo unit.</p></div></div>
-          <div className="mt-3"><div className="flex items-center justify-between mb-1"><span className="text-xs text-slate-400">Nivel de stock</span><span className="text-xs text-slate-400">{item.quantity}/{item.maxStock}</span></div>
-            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden"><div className={"h-full rounded-full " + (item.quantity <= item.minStock ? 'bg-red-500' : item.quantity <= item.minStock * 1.5 ? 'bg-amber-500' : 'bg-emerald-500')} style={{ width: Math.min((item.quantity / item.maxStock) * 100, 100) + '%' }} /></div></div>
-          <div className="mt-3 text-xs text-slate-500">📍 {item.location}</div></>)}
-      </div>); })}</div></div>);
+
+  const filtered = toners.filter(t =>
+    t.model.toLowerCase().includes(search.toLowerCase()) ||
+    t.brand.toLowerCase().includes(search.toLowerCase()) ||
+    t.supplier.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleSubmit = () => {
+    if (!form.model || !form.brand) return;
+    if (editingId) {
+      updateToner(editingId, form);
+    } else {
+      addToner(form);
+    }
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setForm({ model: '', brand: '', color: 'black', stock: 0, minStock: 2, maxStock: 10, unitPrice: 0, supplier: '', lastRestock: '' });
+    setShowForm(false);
+    setEditingId(null);
+  };
+
+  const startEdit = (t: TonerItem) => {
+    setForm({ model: t.model, brand: t.brand, color: t.color, stock: t.stock, minStock: t.minStock, maxStock: t.maxStock, unitPrice: t.unitPrice, supplier: t.supplier, lastRestock: t.lastRestock });
+    setEditingId(t.id);
+    setShowForm(true);
+  };
+
+  const handleRestock = (tonerId: string) => {
+    const toner = toners.find(t => t.id === tonerId);
+    if (!toner) return;
+    updateToner(tonerId, {
+      stock: toner.stock + restockQty,
+      lastRestock: new Date().toISOString().split('T')[0],
+    });
+    addMovement({
+      type: 'restock',
+      tonerId,
+      tonerModel: toner.model,
+      quantity: restockQty,
+      date: new Date().toISOString().split('T')[0],
+      user: 'Carlos Méndez',
+      notes: 'Reposición de stock',
+    });
+    setShowRestock(null);
+    setRestockQty(1);
+  };
+
+  const getStockStatus = (t: TonerItem) => {
+    if (t.stock <= 0) return { label: 'Sin stock', color: 'bg-red-100 text-red-700' };
+    if (t.stock <= t.minStock) return { label: 'Stock bajo', color: 'bg-amber-100 text-amber-700' };
+    if (t.stock >= t.maxStock) return { label: 'Stock completo', color: 'bg-emerald-100 text-emerald-700' };
+    return { label: 'Normal', color: 'bg-blue-100 text-blue-700' };
+  };
+
+  const getStockPercentage = (t: TonerItem) => {
+    return Math.min((t.stock / t.maxStock) * 100, 100);
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar tóner..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none text-sm"
+          />
+        </div>
+        <button
+          onClick={() => { resetForm(); setShowForm(true); }}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
+        >
+          <Plus size={16} />
+          Nuevo Tóner
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+          <p className="text-xs text-gray-500 font-medium">Total Modelos</p>
+          <p className="text-xl font-bold text-gray-800">{toners.length}</p>
+        </div>
+        <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+          <p className="text-xs text-gray-500 font-medium">Unidades Totales</p>
+          <p className="text-xl font-bold text-gray-800">{toners.reduce((s, t) => s + t.stock, 0)}</p>
+        </div>
+        <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+          <p className="text-xs text-gray-500 font-medium">Valor Inventario</p>
+          <p className="text-xl font-bold text-gray-800">${toners.reduce((s, t) => s + t.stock * t.unitPrice, 0).toFixed(0)}</p>
+        </div>
+        <div className="bg-white rounded-xl p-4 border border-amber-100 shadow-sm">
+          <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
+            <AlertTriangle size={12} /> Stock Bajo
+          </p>
+          <p className="text-xl font-bold text-amber-700">{toners.filter(t => t.stock <= t.minStock).length}</p>
+        </div>
+      </div>
+
+      {showForm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="font-semibold text-lg">{editingId ? 'Editar Tóner' : 'Nuevo Tóner'}</h3>
+              <button onClick={resetForm} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Modelo *</label>
+                  <input
+                    type="text"
+                    value={form.model}
+                    onChange={e => setForm({ ...form, model: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none text-sm"
+                    placeholder="Ej: CF258A"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Marca *</label>
+                  <input
+                    type="text"
+                    value={form.brand}
+                    onChange={e => setForm({ ...form, brand: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none text-sm"
+                    placeholder="Ej: HP"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                  <select
+                    value={form.color}
+                    onChange={e => setForm({ ...form, color: e.target.value as TonerItem['color'] })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none text-sm"
+                  >
+                    <option value="black">Negro</option>
+                    <option value="cyan">Cian</option>
+                    <option value="magenta">Magenta</option>
+                    <option value="yellow">Amarillo</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Stock Actual</label>
+                  <input
+                    type="number"
+                    value={form.stock}
+                    onChange={e => setForm({ ...form, stock: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Stock Mínimo</label>
+                  <input
+                    type="number"
+                    value={form.minStock}
+                    onChange={e => setForm({ ...form, minStock: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Stock Máximo</label>
+                  <input
+                    type="number"
+                    value={form.maxStock}
+                    onChange={e => setForm({ ...form, maxStock: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Precio Unitario ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={form.unitPrice}
+                    onChange={e => setForm({ ...form, unitPrice: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
+                  <input
+                    type="text"
+                    value={form.supplier}
+                    onChange={e => setForm({ ...form, supplier: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none text-sm"
+                    placeholder="Nombre del proveedor"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Última Reposición</label>
+                <input
+                  type="date"
+                  value={form.lastRestock}
+                  onChange={e => setForm({ ...form, lastRestock: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none text-sm"
+                />
+              </div>
+            </div>
+            <div className="p-5 border-t border-gray-100 flex justify-end gap-2">
+              <button onClick={resetForm} className="px-4 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50">Cancelar</button>
+              <button onClick={handleSubmit} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 font-medium">
+                {editingId ? 'Guardar Cambios' : 'Agregar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRestock && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full">
+            <h3 className="font-semibold text-lg mb-2">Reponer Stock</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Tóner: {toners.find(t => t.id === showRestock)?.model}
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad a agregar</label>
+              <input
+                type="number"
+                min={1}
+                value={restockQty}
+                onChange={e => setRestockQty(parseInt(e.target.value) || 1)}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none text-sm"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowRestock(null)} className="px-4 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50">Cancelar</button>
+              <button onClick={() => handleRestock(showRestock)} className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700 font-medium">Reponer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full">
+            <h3 className="font-semibold text-lg mb-2">¿Eliminar tóner?</h3>
+            <p className="text-sm text-gray-500 mb-4">Esta acción no se puede deshacer.</p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50">Cancelar</button>
+              <button onClick={() => { deleteToner(deleteConfirm); setDeleteConfirm(null); }} className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700 font-medium">Eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Modelo</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Color</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Stock</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Estado</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Precio</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Proveedor</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filtered.map(toner => {
+                const status = getStockStatus(toner);
+                const pct = getStockPercentage(toner);
+                return (
+                  <tr key={toner.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{toner.model}</p>
+                        <p className="text-xs text-gray-400">{toner.brand}</p>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-4 h-4 rounded-full ${colorMap[toner.color].dot}`} />
+                        <span className="text-sm text-gray-600">{colorMap[toner.color].label}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-800">{toner.stock}</span>
+                        <span className="text-xs text-gray-400">/ {toner.maxStock}</span>
+                      </div>
+                      <div className="w-20 h-1.5 bg-gray-100 rounded-full mt-1">
+                        <div
+                          className={`h-full rounded-full ${
+                            pct <= 25 ? 'bg-red-500' : pct <= 50 ? 'bg-amber-500' : 'bg-emerald-500'
+                          }`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
+                        {status.label}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm text-gray-700">${toner.unitPrice.toFixed(2)}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm text-gray-600">{toner.supplier}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => { setShowRestock(toner.id); setRestockQty(1); }}
+                          className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600 transition-colors"
+                          title="Reponer stock"
+                        >
+                          <ArrowDownCircle size={16} />
+                        </button>
+                        <button onClick={() => startEdit(toner)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors">
+                          <Edit2 size={16} />
+                        </button>
+                        <button onClick={() => setDeleteConfirm(toner.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {filtered.length === 0 && (
+          <div className="text-center py-12">
+            <Package size={48} className="mx-auto text-gray-300 mb-3" />
+            <p className="text-gray-500">No se encontraron tóner</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

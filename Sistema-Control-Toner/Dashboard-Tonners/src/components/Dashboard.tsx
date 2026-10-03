@@ -1,125 +1,322 @@
-import { Printer, TonerInventory, Movement, Alert, Equipment, MonitoredPC } from '../types';
-import { Printer as PrinterIcon, Package, Activity, AlertTriangle, ArrowUpRight, ArrowDownRight, TrendingUp, Monitor, ShoppingCart, Wifi } from 'lucide-react';
-import meshCentralService, { MeshConnectionState } from '../services/meshcentral';
-import { useState, useEffect } from 'react';
+import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
+import {
+  Printer, Package, AlertTriangle, Monitor, Server, Users, Building2, FileText,
+  TrendingUp, TrendingDown, Activity, Shield, Clock, ChevronRight, Sun, Moon
+} from 'lucide-react';
 
-interface Props { printers: Printer[]; inventory: TonerInventory[]; movements: Movement[]; alerts: Alert[]; equipment: Equipment[]; monitoredPCs: MonitoredPC[]; }
-
-export default function Dashboard({ printers, inventory, movements, alerts, equipment, monitoredPCs }: Props) {
-  const [meshState, setMeshState] = useState<MeshConnectionState>(meshCentralService.getState());
-
-  useEffect(function() {
-    var unsub = meshCentralService.onStateChange(function(state) { setMeshState(state); });
-    return function() { unsub(); };
-  }, []);
-
+export default function Dashboard() {
+  const { printers, toners, movements, alerts, equipments, suppliers, collaborators, setCurrentPage } = useApp();
+  const { theme, toggleTheme } = useTheme();
   const activePrinters = printers.filter(p => p.status === 'active').length;
-  const totalToner = inventory.reduce((s, t) => s + t.quantity, 0);
-  const lowStock = inventory.filter(t => t.quantity <= t.minStock).length;
-  const unresolved = alerts.filter(a => !a.resolved).length;
-  const totalValue = inventory.reduce((s, t) => s + (t.quantity * t.unitCost), 0);
-  const pcsOffHours = monitoredPCs.filter(p => p.status === 'off_hours').length;
-  const activeEquipment = equipment.filter(e => e.status === 'active').length;
+  const lowStockItems = toners.filter(t => t.stock <= t.minStock).length;
+  const totalTonerValue = toners.reduce((sum, t) => sum + t.stock * t.unitPrice, 0);
+  const totalMovements = movements.length;
+  const unreadAlerts = alerts.filter(a => !a.read).length;
 
-  const stats = [
-    { label: 'Impresoras Activas', value: activePrinters + '/' + printers.length, icon: PrinterIcon, color: 'from-blue-500 to-blue-600', change: 'Operativas', trend: 'up' as const },
-    { label: 'Stock Toner', value: totalToner, icon: Package, color: 'from-emerald-500 to-emerald-600', change: lowStock + ' bajo minimo', trend: lowStock > 0 ? 'down' as const : 'up' as const },
-    { label: 'Equipamientos', value: activeEquipment, icon: Monitor, color: 'from-purple-500 to-purple-600', change: equipment.length + ' total', trend: 'up' as const },
-    { label: 'Alertas Activas', value: unresolved, icon: AlertTriangle, color: 'from-amber-500 to-orange-500', change: unresolved > 0 ? 'Requiere atencion' : 'Todo en orden', trend: unresolved > 0 ? 'down' as const : 'up' as const },
-    { label: 'PCs Fuera Horario', value: pcsOffHours, icon: Monitor, color: 'from-red-500 to-red-600', change: 'Monitoreo mesh activo', trend: pcsOffHours > 0 ? 'down' as const : 'up' as const },
-    { label: 'Valor Inventario', value: '$' + totalValue.toLocaleString(), icon: ShoppingCart, color: 'from-cyan-500 to-cyan-600', change: 'Toner en stock', trend: 'up' as const },
+  const mainStats = [
+    {
+      title: 'Equipamientos',
+      value: equipments.length,
+      subtitle: `${equipments.filter(e => e.status === 'assigned').length} asignados`,
+      icon: Monitor,
+      gradient: 'from-blue-500 to-blue-600',
+      lightBg: 'bg-blue-50',
+      iconColor: 'text-blue-600',
+      trend: '+12%',
+      trendUp: true,
+      page: 'equipments' as const,
+    },
+    {
+      title: 'Colaboradores',
+      value: collaborators.length,
+      subtitle: `${collaborators.filter(c => c.active).length} activos`,
+      icon: Users,
+      gradient: 'from-violet-500 to-purple-600',
+      lightBg: 'bg-violet-50',
+      iconColor: 'text-violet-600',
+      trend: '+5%',
+      trendUp: true,
+      page: 'collaborators' as const,
+    },
+    {
+      title: 'Proveedores',
+      value: suppliers.length,
+      subtitle: `${suppliers.filter(s => s.active).length} activos`,
+      icon: Building2,
+      gradient: 'from-emerald-500 to-teal-600',
+      lightBg: 'bg-emerald-50',
+      iconColor: 'text-emerald-600',
+      trend: '+3%',
+      trendUp: true,
+      page: 'suppliers' as const,
+    },
+    {
+      title: 'Impresoras',
+      value: printers.length,
+      subtitle: `${activePrinters} activas`,
+      icon: Printer,
+      gradient: 'from-amber-500 to-orange-600',
+      lightBg: 'bg-amber-50',
+      iconColor: 'text-amber-600',
+      trend: '0%',
+      trendUp: true,
+      page: 'printers' as const,
+    },
   ];
 
-  function getTonerColor(l: number) { return l <= 20 ? 'bg-red-500' : l <= 40 ? 'bg-amber-500' : l <= 60 ? 'bg-yellow-400' : 'bg-emerald-500'; }
-  function getMovIcon(t: string) { return t === 'install' ? '🟢' : t === 'remove' ? '🔴' : t === 'restock' ? '🔵' : '⚫'; }
-  function getMovLabel(t: string) { return t === 'install' ? 'Instalacion' : t === 'remove' ? 'Retiro' : t === 'restock' ? 'Reabastecimiento' : 'Disposicion'; }
+  const secondaryStats = [
+    {
+      title: 'Inventario Tóner',
+      value: toners.reduce((s, t) => s + t.stock, 0),
+      subtitle: `Valor: $${totalTonerValue.toLocaleString('es-AR')}`,
+      icon: Package,
+      color: 'text-blue-600',
+      bg: 'bg-blue-50',
+      page: 'inventory' as const,
+    },
+    {
+      title: 'Comprobantes',
+      value: movements.length,
+      subtitle: 'Este período',
+      icon: FileText,
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-50',
+      page: 'vouchers' as const,
+    },
+    {
+      title: 'Alertas Stock',
+      value: lowStockItems,
+      subtitle: `${unreadAlerts} sin leer`,
+      icon: AlertTriangle,
+      color: 'text-amber-600',
+      bg: 'bg-amber-50',
+      page: 'inventory' as const,
+    },
+    {
+      title: 'Movimientos',
+      value: totalMovements,
+      subtitle: 'Total registrado',
+      icon: Clock,
+      color: 'text-purple-600',
+      bg: 'bg-purple-50',
+      page: 'movements' as const,
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div><h1 className="text-2xl lg:text-3xl font-bold text-white">Dashboard</h1><p className="text-slate-400 text-sm mt-1">Sistema de Control de Toner y Equipamientos - Donnet</p></div>
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10"><span className="text-sm text-slate-400">Valor inventario:</span><span className="text-lg font-bold text-emerald-400">${totalValue.toLocaleString()}</span></div>
+    <div className="space-y-6 max-w-[1600px] mx-auto">
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 rounded-2xl p-6 lg:p-8 shadow-xl">
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)`,
+            backgroundSize: '24px 24px'
+          }} />
+        </div>
+        <div className="relative flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Shield size={14} className="text-blue-300" />
+              <span className="text-xs font-medium text-blue-300 uppercase tracking-wider">Panel de Control</span>
+            </div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-white mb-1">
+              Bienvenido al Sistema de Control
+            </h1>
+            <p className="text-blue-200 text-sm lg:text-base">
+              Gestión integral de equipamientos, impresoras e inventario
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleTheme}
+              className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-3 text-white hover:bg-white/20 transition-colors"
+              title={theme === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'}
+            >
+              {theme === 'light' ? <Moon size={24} /> : <Sun size={24} />}
+            </button>
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2.5 text-white">
+              <p className="text-xs text-blue-200">Fecha</p>
+              <p className="text-sm font-semibold">
+                {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2.5 text-white">
+              <p className="text-xs text-blue-200">Hora</p>
+              <p className="text-sm font-semibold">
+                {new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {stats.map(function(stat, i) {
-          var Icon = stat.icon; var trendUp = stat.trend === 'up';
-          return (<div key={i} className="glass-card p-5 hover:border-white/20 transition-all group">
-            <div className="flex items-start justify-between"><div className={"w-12 h-12 rounded-xl bg-gradient-to-br " + stat.color + " flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"}><Icon className="w-6 h-6 text-white" /></div>
-              <div className={"flex items-center gap-1 text-xs font-medium " + (trendUp ? 'text-emerald-400' : 'text-amber-400')}>{trendUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}</div></div>
-            <div className="mt-4"><p className="text-2xl font-bold text-white">{stat.value}</p><p className="text-sm text-slate-400 mt-1">{stat.label}</p></div>
-            <p className={"text-xs mt-2 " + (trendUp ? 'text-emerald-400/70' : 'text-amber-400/70')}>{stat.change}</p></div>);
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {mainStats.map((stat, i) => {
+          const Icon = stat.icon;
+          return (
+            <button
+              key={i}
+              onClick={() => setCurrentPage(stat.page)}
+              className="group relative bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-gray-200 transition-all duration-300 text-left overflow-hidden"
+            >
+              <div className={`absolute -top-8 -right-8 w-24 h-24 bg-gradient-to-br ${stat.gradient} opacity-10 rounded-full blur-2xl group-hover:opacity-20 transition-opacity`} />
+              
+              <div className="relative">
+                <div className="flex items-start justify-between mb-4">
+                  <div className={`p-2.5 rounded-xl ${stat.lightBg} group-hover:scale-110 transition-transform duration-300`}>
+                    <Icon size={22} className={stat.iconColor} />
+                  </div>
+                  <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                    stat.trendUp ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+                  }`}>
+                    {stat.trendUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                    {stat.trend}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-0.5">{stat.title}</p>
+                  <p className="text-3xl font-bold text-gray-900 tracking-tight">{stat.value}</p>
+                  <p className="text-xs text-gray-400 mt-1">{stat.subtitle}</p>
+                </div>
+                <div className="mt-4 flex items-center gap-1 text-xs font-medium text-gray-400 group-hover:text-blue-600 transition-colors">
+                  Ver detalles <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+                </div>
+              </div>
+            </button>
+          );
         })}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 glass-card p-6">
-          <div className="flex items-center justify-between mb-6"><h2 className="text-lg font-semibold text-white">Nivel de Toner por Impresora</h2><span className="text-xs text-slate-400 bg-white/5 px-3 py-1 rounded-full">En tiempo real</span></div>
-          <div className="space-y-4">{printers.map(function(printer) {
-            return (<div key={printer.id} className="flex items-center gap-4"><div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-1"><span className="text-sm font-medium text-white truncate">{printer.name}</span>
-                <span className={"text-sm font-bold " + (printer.tonerLevel <= 20 ? 'text-red-400' : printer.tonerLevel <= 40 ? 'text-amber-400' : 'text-emerald-400')}>{printer.tonerLevel}%</span></div>
-              <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden"><div className={"toner-bar h-full rounded-full " + getTonerColor(printer.tonerLevel)} style={{ width: printer.tonerLevel + '%' }} /></div>
-              <div className="flex items-center justify-between mt-1"><span className="text-xs text-slate-500">{printer.department}</span>
-                <span className={"text-xs px-2 py-0.5 rounded-full " + (printer.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : printer.status === 'maintenance' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400')}>{printer.status === 'active' ? 'Activa' : printer.status === 'maintenance' ? 'Mantenimiento' : 'Inactiva'}</span></div></div></div>);
-          })}</div>
-        </div>
-        <div className="glass-card p-6"><div className="flex items-center justify-between mb-6"><h2 className="text-lg font-semibold text-white">Ultimos Movimientos</h2><TrendingUp className="w-5 h-5 text-slate-400" /></div>
-          <div className="space-y-3">{movements.slice(0, 6).map(function(m) {
-            return (<div key={m.id} className="flex items-start gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
-              <span className="text-lg">{getMovIcon(m.type)}</span><div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{getMovLabel(m.type)}</p>
-                <p className="text-xs text-slate-400 truncate">{m.tonerModel} - {m.printerName}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{m.date} - {m.user}</p></div></div>);
-          })}</div></div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {secondaryStats.map((stat, i) => {
+          const Icon = stat.icon;
+          return (
+            <button
+              key={i}
+              onClick={() => setCurrentPage(stat.page)}
+              className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className={`${stat.bg} ${stat.color} p-2 rounded-lg group-hover:scale-110 transition-transform`}>
+                  <Icon size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-500 truncate">{stat.title}</p>
+                  <p className="text-xl font-bold text-gray-800">{stat.value}</p>
+                  <p className="text-xs text-gray-400 truncate">{stat.subtitle}</p>
+                </div>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Estado MeshCentral - Solo datos, sin iframe */}
-      <div className="glass-card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className={"w-10 h-10 rounded-xl flex items-center justify-center " + (meshState.connected ? 'bg-emerald-500/20' : 'bg-slate-500/20')}>
-              <Wifi className={"w-5 h-5 " + (meshState.connected ? 'text-emerald-400' : 'text-slate-400')} />
+      {unreadAlerts > 0 && (
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-50 rounded-xl">
+                <AlertTriangle size={20} className="text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800">Alertas Pendientes</h3>
+                <p className="text-xs text-gray-400">{unreadAlerts} notificación{unreadAlerts !== 1 ? 'es' : ''} sin leer</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-semibold text-white">Estado MeshCentral</h2>
-              <p className="text-xs text-slate-400">mesh.donnet.com.ar - WebSocket</p>
-            </div>
+            <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">
+              {unreadAlerts}
+            </span>
           </div>
-          <div className={"flex items-center gap-2 px-3 py-1.5 rounded-xl border " + (meshState.connected ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20')}>
-            <div className={"w-2 h-2 rounded-full " + (meshState.connected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400')} />
-            <span className={"text-sm " + (meshState.connected ? 'text-emerald-400' : 'text-red-400')}>{meshState.connected ? 'Conectado' : 'Desconectado'}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {alerts.filter(a => !a.read).slice(0, 6).map(alert => (
+              <div
+                key={alert.id}
+                className={`p-4 rounded-xl border transition-all hover:shadow-sm ${
+                  alert.severity === 'high' ? 'bg-gradient-to-br from-red-50 to-rose-50 border-red-100' :
+                  alert.severity === 'medium' ? 'bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-100' :
+                  'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100'
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${
+                    alert.severity === 'high' ? 'bg-red-500' :
+                    alert.severity === 'medium' ? 'bg-amber-500' : 'bg-blue-500'
+                  }`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-700 leading-snug">{alert.message}</p>
+                    <p className="text-xs text-gray-400 mt-1.5">{alert.date}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-            <p className="text-2xl font-bold text-white">{meshState.nodeCount || monitoredPCs.length}</p>
-            <p className="text-xs text-slate-400 mt-1">Equipos monitoreados</p>
-          </div>
-          <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-            <p className="text-2xl font-bold text-emerald-400">{monitoredPCs.filter(function(p){return p.status==='online'}).length}</p>
-            <p className="text-xs text-slate-400 mt-1">En linea</p>
-          </div>
-          <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-            <p className="text-2xl font-bold text-amber-400">{pcsOffHours}</p>
-            <p className="text-xs text-slate-400 mt-1">Fuera de horario</p>
+      )}
+
+      {equipments.length === 0 && collaborators.length === 0 && (
+        <div className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-8 border border-blue-100">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-200 to-purple-200 opacity-20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="relative text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/80 backdrop-blur-sm rounded-full text-xs font-medium text-blue-700 mb-4 border border-blue-100">
+              <Activity size={12} /> Sistema inicializado
+            </div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">
+              ¡Bienvenido al Sistema de Control de Tóner!
+            </h3>
+            <p className="text-sm text-gray-600 mb-6 max-w-lg mx-auto">
+              Comienza registrando tus recursos para gestionar tu infraestructura de forma eficiente
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {[
+                { label: 'Equipamientos', icon: Monitor, color: 'bg-blue-100 text-blue-700' },
+                { label: 'Colaboradores', icon: Users, color: 'bg-violet-100 text-violet-700' },
+                { label: 'Proveedores', icon: Building2, color: 'bg-emerald-100 text-emerald-700' },
+                { label: 'Comprobantes', icon: FileText, color: 'bg-amber-100 text-amber-700' },
+                { label: 'Impresoras', icon: Printer, color: 'bg-rose-100 text-rose-700' },
+              ].map((item, i) => {
+                const Icon = item.icon;
+                return (
+                  <span key={i} className={`inline-flex items-center gap-1.5 px-3 py-1.5 ${item.color} rounded-full text-xs font-medium`}>
+                    <Icon size={12} /> {item.label}
+                  </span>
+                );
+              })}
+            </div>
           </div>
         </div>
-        <p className="text-xs text-slate-500 mt-4">Ver detalle en la seccion Monitoreo Mesh</p>
+      )}
+
+      <div className="relative overflow-hidden bg-white rounded-2xl shadow-sm border border-gray-100">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 opacity-[0.03]" />
+        <div className="relative p-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
+                  <Server className="w-6 h-6 text-white" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-800">
+                  Desarrollado por Area Sistemas PEDSA
+                </h3>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-xs text-gray-400">Versión</p>
+                <p className="text-xs font-semibold text-gray-700">2.0.0</p>
+              </div>
+              <div className="h-10 w-px bg-gray-200" />
+              <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 rounded-full border border-emerald-200">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                <span className="text-xs font-semibold text-emerald-700">Sistema Activo</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-
-      {pcsOffHours > 0 && <div className="glass-card p-6 border-red-500/20">
-        <div className="flex items-center gap-3 mb-4"><div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center"><Monitor className="w-5 h-5 text-red-400" /></div>
-          <div><h2 className="text-lg font-semibold text-white">PCs Encendidas Fuera de Horario</h2><p className="text-sm text-slate-400">Detectado via mesh.donnet.com.ar</p></div></div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">{monitoredPCs.filter(function(p){return p.status==='off_hours'}).map(function(pc){return(<div key={pc.id}className="p-4 rounded-xl bg-red-500/10 border border-red-500/20"><p className="text-sm font-bold text-white">{pc.hostname}</p><p className="text-xs text-slate-400 mt-1">{pc.department} - {pc.user}</p><p className="text-xs text-red-400 mt-1">Ultima actividad: {pc.lastSeen}</p></div>)})}</div></div>}
-
-      {lowStock > 0 && <div className="glass-card p-6 border-amber-500/20">
-        <div className="flex items-center gap-3 mb-4"><div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center"><AlertTriangle className="w-5 h-5 text-amber-400" /></div>
-          <div><h2 className="text-lg font-semibold text-white">Alertas de Stock Bajo</h2><p className="text-sm text-slate-400">Items que necesitan reabastecimiento</p></div></div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">{inventory.filter(t => t.quantity <= t.minStock).map(item => (
-          <div key={item.id} className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
-            <div className="flex items-center justify-between"><span className="text-sm font-bold text-white">{item.model}</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">{item.quantity}/{item.minStock} min.</span></div>
-            <p className="text-xs text-slate-400 mt-1">Color: {item.color === 'black' ? 'Negro' : item.color}</p>
-            <p className="text-xs text-slate-500 mt-1">{item.location}</p></div>))}</div></div>}
     </div>
   );
 }

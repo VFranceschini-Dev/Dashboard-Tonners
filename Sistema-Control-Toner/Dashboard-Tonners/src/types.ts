@@ -1,113 +1,107 @@
-// Tipos para el Sistema de Control de Tóner y Equipamientos
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: 'admin' | 'operator' | 'viewer';
-  permissions: string[];
-  active: boolean;
-  createdAt: string;
-}
-
 export interface Printer {
   id: string;
   name: string;
   location: string;
-  model: string;
   department: string;
-  status: 'active' | 'maintenance' | 'inactive';
-  lastMaintenance: string;
-  tonerLevel: number;
+  model: string;
+  status: 'active' | 'inactive' | 'maintenance';
   tonerModel: string;
-  pagesPrinted: number;
-  assignedTo?: string;
+  lastMaintenance: string;
+  totalPages: number;
 }
 
-export interface TonerInventory {
+export interface TonerItem {
   id: string;
   model: string;
+  brand: string;
   color: 'black' | 'cyan' | 'magenta' | 'yellow';
-  quantity: number;
+  stock: number;
   minStock: number;
   maxStock: number;
-  location: string;
-  lastRestocked: string;
-  compatiblePrinters: string[];
-  unitCost: number;
-  supplierId: string;
+  unitPrice: number;
+  supplier: string;
+  lastRestock: string;
+}
+
+export interface Movement {
+  id: string;
+  type: 'delivery' | 'return' | 'restock' | 'disposal';
+  tonerId: string;
+  tonerModel: string;
+  printerId?: string;
+  printerName?: string;
+  quantity: number;
+  date: string;
+  user: string;
+  notes: string;
+}
+
+export interface Alert {
+  id: string;
+  type: 'low_stock' | 'maintenance' | 'info' | 'after_hours';
+  message: string;
+  severity: 'low' | 'medium' | 'high';
+  date: string;
+  read: boolean;
+}
+
+export interface Equipment {
+  id: string;
+  name: string;
+  type: 'desktop' | 'laptop' | 'server' | 'monitor' | 'peripheral' | 'other';
+  brand: string;
+  model: string;
+  serialNumber: string;
+  assetTag: string;
+  category: string;
+  status: 'assigned' | 'available' | 'maintenance' | 'retired';
+  collaboratorId?: string;
+  purchaseDate: string;
+  warrantyEnd: string;
+  notes: string;
 }
 
 export interface Supplier {
   id: string;
   name: string;
+  cuit: string;
   contact: string;
   email: string;
   phone: string;
   address: string;
+  category: string;
   active: boolean;
+  notes: string;
 }
 
-export interface Purchase {
+export interface Collaborator {
   id: string;
+  name: string;
+  lastName: string;
+  dni: string;
+  email: string;
+  phone: string;
+  department: string;
+  position: string;
+  active: boolean;
+  equipmentCount: number;
+  joinDate: string;
+  notes: string;
+}
+
+export interface Voucher {
+  id: string;
+  number: string;
+  type: 'invoice' | 'receipt' | 'order' | 'delivery' | 'return';
   supplierId: string;
+  supplierName: string;
   date: string;
-  items: PurchaseItem[];
-  total: number;
-  status: 'pending' | 'received' | 'cancelled';
+  amount: number;
+  currency: 'ARS' | 'USD';
+  description: string;
+  equipmentIds: string[];
+  status: 'pending' | 'approved' | 'rejected' | 'processed';
   notes: string;
 }
 
-export interface PurchaseItem {
-  tonerModel: string;
-  quantity: number;
-  unitCost: number;
-  total: number;
-}
-
-export interface Equipment {
-  id: string;
-  type: 'computer' | 'printer' | 'mouse' | 'keyboard' | 'monitor' | 'other';
-  brand: string;
-  model: string;
-  serialNumber: string;
-  assignedTo: string;
-  department: string;
-  status: 'active' | 'maintenance' | 'retired';
-  purchaseDate: string;
-  lastRevision: string;
-  notes: string;
-}
-
-export interface Movement {
-  id: string;
-  type: 'install' | 'remove' | 'restock' | 'dispose';
-  tonerModel: string;
-  printerName: string;
-  date: string;
-  user: string;
-  notes: string;
-  quantity: number;
-}
-
-export interface Alert {
-  id: string;
-  type: 'low_stock' | 'maintenance_due' | 'toner_low' | 'pc_off_hours' | 'equipment_revision';
-  message: string;
-  severity: 'low' | 'medium' | 'high';
-  date: string;
-  resolved: boolean;
-  entityId?: string;
-}
-
-export interface MonitoredPC {
-  id: string;
-  hostname: string;
-  ip: string;
-  department: string;
-  user: string;
-  status: 'online' | 'offline' | 'off_hours';
-  lastSeen: string;
-  os: string;
-  meshId: string;
-}
+export type Page = 'dashboard' | 'printers' | 'inventory' | 'movements' | 'reports' | 'equipments' | 'suppliers' | 'collaborators' | 'vouchers' | 'import';

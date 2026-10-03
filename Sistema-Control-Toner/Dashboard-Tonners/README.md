@@ -1,32 +1,47 @@
-# React + TypeScript + Vite
+# Sistema de Control de Tóner
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Sistema integral de gestión de impresión, equipamientos y monitoreo remoto desarrollado por **Area Sistemas PEDSA**.
 
-Currently, two official plugins are available:
+## 🚀 Características
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### Módulos Principales
 
-## React Compiler
+- **📊 Dashboard** - Panel de control con estadísticas en tiempo real
+- **🖥️ Equipamientos** - ABM completo de equipos con clasificación por tipo y categoría
+- **👥 Colaboradores** - Gestión de personal con asignación de equipos
+- **🏢 Proveedores** - Control de proveedores con categorías
+- **🧾 Comprobantes** - Gestión de facturas, recibos, órdenes de compra, remitos y notas de crédito
+- **🖨️ Impresoras** - Administración de impresoras y su mantenimiento
+- **📦 Inventario** - Control de stock de tóner con alertas de stock bajo
+- **🔄 Movimientos** - Registro de entregas, reposiciones, devoluciones y desechos
+- **📈 Reportes** - Análisis y exportación de datos
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Funcionalidades Destacadas
 
-## Expanding the Oxlint configuration
+✅ **Autenticación Segura** - Login con email y contraseña  
+✅ **Diseño Responsive** - Interfaz adaptable a todos los dispositivos  
+✅ **Tema Oscuro/Claro** - Toggle para cambiar entre modos  
+✅ **Estilo Figma** - UI moderna con gradientes, glassmorphism y animaciones  
+✅ **Alertas Automáticas** - Notificaciones de stock bajo y mantenimiento  
+✅ **Exportación de Datos** - Reportes en formato JSON  
+✅ **Búsqueda y Filtros** - Búsqueda avanzada en todos los módulos  
+✅ **CRUD Completo** - Alta, baja y modificación en todos los módulos  
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## 🔐 Credenciales de Acceso
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+| Rol | Email | Contraseña |
+|-----|-------|------------|
+| **Administrador** | soporte@donnet.com.ar | 6mn78az39* |
+| **Usuario** | usuario@donnet.com.ar | user123 |
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## 📦 Instalación
+
+```bash
+# Instalar dependencias
+npm install
+
+# Ejecutar en modo desarrollo
+npm run dev
+
+# Compilar para producción
+npm run build
