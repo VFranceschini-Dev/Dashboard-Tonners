@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { ImportResult } from './csvImporter';
+import { type ImportResult } from './csvImporter';
 
 export async function importExcel<T>(
   file: File,

@@ -1,49 +1,54 @@
+import { lazy, Suspense, type ComponentType } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider, useApp } from './context/AppContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Layout from './components/Layout';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
-import Printers from './components/Printers';
-import Inventory from './components/Inventory';
-import Movements from './components/Movements';
-import Reports from './components/Reports';
-import Equipments from './components/Equipments';
-import Suppliers from './components/Suppliers';
-import Collaborators from './components/Collaborators';
-import Vouchers from './components/Vouchers';
-import AdminPanel from './components/AdminPanel';
-import MeshTestConnection from './components/MeshTestConnection';
+
+// Code-splitting: cada página se carga bajo demanda (dynamic import)
+const Printers = lazy(() => import('./components/Printers'));
+const Inventory = lazy(() => import('./components/Inventory'));
+const Movements = lazy(() => import('./components/Movements'));
+const Reports = lazy(() => import('./components/Reports'));
+const Equipments = lazy(() => import('./components/Equipments'));
+const Suppliers = lazy(() => import('./components/Suppliers'));
+const Collaborators = lazy(() => import('./components/Collaborators'));
+const Vouchers = lazy(() => import('./components/Vouchers'));
+const AdminPanel = lazy(() => import('./components/AdminPanel'));
+const MeshTestConnection = lazy(() => import('./components/MeshTestConnection'));
+
+const pages: Record<string, ComponentType> = {
+  dashboard: Dashboard,
+  printers: Printers,
+  inventory: Inventory,
+  movements: Movements,
+  reports: Reports,
+  equipments: Equipments,
+  suppliers: Suppliers,
+  collaborators: Collaborators,
+  vouchers: Vouchers,
+  admin: AdminPanel,
+  'mesh-test': MeshTestConnection,
+};
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="animate-spin h-10 w-10 border-4 border-blue-600 border-t-transparent rounded-full" />
+    </div>
+  );
+}
 
 function PageRouter() {
   const { currentPage } = useApp();
+  const Page = pages[currentPage] ?? Dashboard;
 
-  switch (currentPage) {
-    case 'dashboard':
-      return <Dashboard />;
-    case 'printers':
-      return <Printers />;
-    case 'inventory':
-      return <Inventory />;
-    case 'movements':
-      return <Movements />;
-    case 'reports':
-      return <Reports />;
-    case 'equipments':
-      return <Equipments />;
-    case 'suppliers':
-      return <Suppliers />;
-    case 'collaborators':
-      return <Collaborators />;
-    case 'vouchers':
-      return <Vouchers />;
-    case 'admin':
-      return <AdminPanel />;
-    case 'mesh-test':
-      return <MeshTestConnection />;
-    default:
-      return <Dashboard />;
-  }
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Page />
+    </Suspense>
+  );
 }
 
 function AppContent() {

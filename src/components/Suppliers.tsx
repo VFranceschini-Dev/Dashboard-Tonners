@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Supplier } from '../types';
+import { type Supplier } from '../types';
 import { SUPPLIER_CATEGORIES } from '../data';
 import { Plus, Search, Edit2, Trash2, X, Building2, Phone, Mail, MapPin, Tag, CheckCircle, XCircle, User } from 'lucide-react';
 

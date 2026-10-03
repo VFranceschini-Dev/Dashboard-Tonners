@@ -1,7 +1,8 @@
 export interface MeshConfig {
   serverUrl: string;
   username: string;
-  password: string;
+  password: string;      // solo en memoria (sesión actual)
+  savedPassword?: string; // opcional, cifrada y guardada explícitamente por el usuario
   autoSync: boolean;
   syncInterval: number; // minutos
 }
@@ -37,17 +38,55 @@ class MeshCentralService {
   private listeners: ((event: string, data: any) => void)[] = [];
   private syncTimer: any = null;
 
+  // OFUSCACIÓN (no cifrado real): la contraseña no se guarda en texto plano en
+  // localStorage. La seguridad verdadera requiere un backend/proxy; esto solo
+  // evita la exposición accidental más común.
+  private static readonly OBF_KEY = 'toner-mesh-obf-v1';
+
+  private encodePassword(pwd: string): string {
+    const bytes = Array.from(
+      new TextEncoder().encode(MeshCentralService.OBF_KEY + '\u0000' + pwd),
+      (b) => String.fromCharCode(b ^ 0x5a)
+    );
+    return btoa(bytes.join(''));
+  }
+
+  private decodePassword(encoded: string): string {
+    try {
+      const raw = atob(encoded);
+      const decoded = new TextDecoder().decode(
+        Uint8Array.from(raw, (c) => c.charCodeAt(0) ^ 0x5a)
+      );
+      const prefix = MeshCentralService.OBF_KEY + '\u0000';
+      return decoded.startsWith(prefix) ? decoded.slice(prefix.length) : '';
+    } catch {
+      return '';
+    }
+  }
+
   // Configuración
   setConfig(config: MeshConfig) {
     this.config = config;
-    localStorage.setItem('mesh_config', JSON.stringify(config));
+    // Persistir sin la contraseña en texto plano; solo si el usuario pidió "recordar"
+    const { password, ...rest } = config;
+    const stored: Record<string, unknown> = { ...rest };
+    if (config.savedPassword !== undefined && config.savedPassword !== '') {
+      stored.savedPassword = this.encodePassword(config.savedPassword);
+    }
+    localStorage.setItem('mesh_config', JSON.stringify(stored));
   }
 
   getConfig(): MeshConfig | null {
     if (this.config) return this.config;
     const saved = localStorage.getItem('mesh_config');
     if (saved) {
-      this.config = JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      if (parsed.savedPassword) {
+        parsed.password = this.decodePassword(parsed.savedPassword);
+      } else {
+        parsed.password = parsed.password ?? '';
+      }
+      this.config = parsed as MeshConfig;
       return this.config;
     }
     return null;

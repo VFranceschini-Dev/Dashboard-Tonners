@@ -5,7 +5,7 @@ import {
   AlertTriangle, Maximize2, Minimize2, Globe, Shield, Activity,
   ChevronDown, ChevronUp, Zap
 } from 'lucide-react';
-import { meshCentralService, MeshNode } from '../services/meshCentral';
+import { meshCentralService, type MeshNode } from '../services/meshCentral';
 
 const WORK_START_HOUR = 8;
 const WORK_END_HOUR = 18;
